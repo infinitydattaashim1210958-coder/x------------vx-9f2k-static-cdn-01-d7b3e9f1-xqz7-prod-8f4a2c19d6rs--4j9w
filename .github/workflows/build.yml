@@ -32,7 +32,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p www/assets/databases
-          gh release download v1 --repo "${{ github.repository }}" --pattern "core.db.gz" --clobber --dir .
+          gh release download v1 --repo "infinitydattaashim1210958-coder/-------------vx-9f2k-static-cdn-01-d7b3e9f1-xqz7-prod-8f4a2c19d6rs--4j9w" --pattern "core.db.gz" --clobber --dir .
           gunzip -f core.db.gz
           mv core.db www/assets/databases/core.db
           echo "core.db size: $(du -sh www/assets/databases/core.db)"
@@ -41,7 +41,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release download v1 --repo "${{ github.repository }}" --pattern "ramayana.db.gz" --clobber --dir .
+          gh release download v1 --repo "infinitydattaashim1210958-coder/-------------vx-9f2k-static-cdn-01-d7b3e9f1-xqz7-prod-8f4a2c19d6rs--4j9w" --pattern "ramayana.db.gz" --clobber --dir .
           gunzip -f ramayana.db.gz
           mv ramayana.db www/assets/databases/ramayana.db
           echo "ramayana.db size: $(du -sh www/assets/databases/ramayana.db)"
@@ -51,7 +51,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release download v1 --repo "${{ github.repository }}" --pattern "mahabharata.db.gz" --clobber --dir .
+          gh release download v1 --repo "infinitydattaashim1210958-coder/-------------vx-9f2k-static-cdn-01-d7b3e9f1-xqz7-prod-8f4a2c19d6rs--4j9w" --pattern "mahabharata.db.gz" --clobber --dir .
           gunzip -f mahabharata.db.gz
           mv mahabharata.db www/assets/databases/mahabharata.db
           echo "mahabharata.db size: $(du -sh www/assets/databases/mahabharata.db)"
