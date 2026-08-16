@@ -1,6 +1,6 @@
 {
-  "appId": "com.arsasiddanto.chaturveda",
-  "appName": "Chaturveda",
+  "appId": "com.kyronix.chaturveda",
+  "appName": "स्वाध्याय",
   "webDir": "www",
   "bundledWebRuntime": false,
   "server": {
