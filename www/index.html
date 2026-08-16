@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>চতুর্বেদ সংকলন</title>
+<link rel="stylesheet" href="css/app.css?v=71">
+</head>
+<body>
+
+<div class="appBar">
+  <button id="backBtn" class="iconBtn" aria-label="পেছনে">←</button>
+  <div id="appTitle">চতুর্বেদ সংকলন</div>
+  <div class="appBarRight">
+    <button id="searchBtn" class="iconBtn" aria-label="খুঁজুন">⌕</button>
+    <button id="settingsBtn" class="iconBtn" aria-label="সেটিংস">⚙️</button>
+  </div>
+</div>
+
+<div id="app"></div>
+
+<script src="js/db.js"></script>
+<script src="js/lib.js"></script>
+<script src="js/ramayana.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/app.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
+    window.Capacitor.Plugins.App.addListener("backButton", function () {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.Capacitor.Plugins.App.exitApp();
+      }
+    });
+  }
+});
+</script>
+</body>
+</html>
