@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="bn">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Reader Preferences - Chaturveda</title>
+
+<style>
+
+body{
+    font-family:"Noto Sans Bengali",sans-serif;
+    background:#fafafa;
+    color:#222;
+    margin:0;
+}
+
+.header{
+    background:#8b4513;
+    color:white;
+    padding:20px;
+    font-size:22px;
+    font-weight:bold;
+}
+
+.card{
+
+    background:white;
+    margin:15px;
+    padding:18px;
+    border-radius:15px;
+    box-shadow:0 2px 8px #ddd;
+
+}
+
+
+label{
+
+display:block;
+margin-bottom:8px;
+font-weight:bold;
+
+}
+
+
+select,input{
+
+width:100%;
+padding:12px;
+margin-bottom:18px;
+border-radius:10px;
+border:1px solid #ccc;
+font-size:16px;
+
+}
+
+
+.switch{
+
+display:flex;
+justify-content:space-between;
+align-items:center;
+
+}
+
+
+button{
+
+background:#8b4513;
+color:white;
+border:none;
+padding:12px 20px;
+border-radius:10px;
+font-size:16px;
+
+}
+
+
+.preview{
+
+margin:15px;
+padding:20px;
+border-radius:15px;
+background:white;
+box-shadow:0 2px 8px #ddd;
+
+}
+
+
+.dark{
+
+background:#121212;
+color:white;
+
+}
+
+.dark .card,
+.dark .preview{
+
+background:#1e1e1e;
+
+}
+
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<div class="header">
+
+📖 Reader Preferences
+
+</div>
+
+
+
+<div class="card">
+
+
+<label>
+Font Size
+</label>
+
+<input 
+type="range"
+id="fontSize"
+min="14"
+max="32"
+value="18">
+
+
+<label>
+Font Family
+</label>
+
+<select id="fontFamily">
+
+<option value="Noto Sans Bengali">
+Noto Sans Bengali
+</option>
+
+<option value="Sanskrit">
+Sanskrit
+</option>
+
+<option value="serif">
+Serif
+</option>
+
+<option value="sans-serif">
+Sans Serif
+</option>
+
+</select>
+
+
+
+<label>
+Theme
+</label>
+
+<select id="theme">
+
+<option value="auto">
+Auto
+</option>
+
+<option value="light">
+Light
+</option>
+
+<option value="dark">
+Dark
+</option>
+
+</select>
+
+
+
+<label>
+Line Height
+</label>
+
+<input 
+type="range"
+id="lineHeight"
+min="1"
+max="3"
+step="0.1"
+value="1.8">
+
+
+
+<label>
+Page Margin
+</label>
+
+<input 
+type="range"
+id="margin"
+min="10"
+max="50"
+value="20">
+
+
+
+<div class="switch">
+
+<span>
+Justify Text
+</span>
+
+<input 
+type="checkbox"
+id="justify"
+checked>
+
+</div>
+
+
+<br>
+
+
+<div class="switch">
+
+<span>
+Keep Screen Awake
+</span>
+
+<input 
+type="checkbox"
+id="awake">
+
+</div>
+
+
+<br>
+
+
+<button onclick="saveSettings()">
+
+💾 Save Preferences
+
+</button>
+
+
+</div>
+
+
+
+<div class="preview" id="preview">
+
+<h3>
+ऋग्वेदः । Rigveda
+</h3>
+
+<p>
+ॐ अग्निमीळे पुरोहितं यज्ञस्य देवमृत्विजम्।
+  
+আমি অগ্নির স্তব করি, যিনি যজ্ঞের পুরোহিত।
+</p>
+
+</div>
+
+
+
+<script>
+
+
+let preview=document.getElementById("preview");
+
+
+function applySettings(){
+
+
+let size=localStorage.fontSize || 18;
+
+let family=localStorage.fontFamily || "Noto Sans Bengali";
+
+let height=localStorage.lineHeight || 1.8;
+
+let margin=localStorage.margin || 20;
+
+
+preview.style.fontSize=size+"px";
+
+preview.style.fontFamily=family;
+
+preview.style.lineHeight=height;
+
+preview.style.padding=margin+"px";
+
+
+document.getElementById("fontSize").value=size;
+
+document.getElementById("fontFamily").value=family;
+
+document.getElementById("lineHeight").value=height;
+
+document.getElementById("margin").value=margin;
+
+
+
+if(localStorage.theme==="dark"){
+
+document.body.classList.add("dark");
+
+document.getElementById("theme").value="dark";
+
+}
+
+
+}
+
+
+
+function saveSettings(){
+
+
+localStorage.fontSize=
+document.getElementById("fontSize").value;
+
+
+localStorage.fontFamily=
+document.getElementById("fontFamily").value;
+
+
+localStorage.lineHeight=
+document.getElementById("lineHeight").value;
+
+
+localStorage.margin=
+document.getElementById("margin").value;
+
+
+localStorage.theme=
+document.getElementById("theme").value;
+
+
+
+if(document.getElementById("theme").value==="dark"){
+
+document.body.classList.add("dark");
+
+}
+
+else{
+
+document.body.classList.remove("dark");
+
+}
+
+
+alert("Reader preferences saved");
+
+
+}
+
+
+
+document
+.getElementById("theme")
+.onchange=function(){
+
+if(this.value==="dark")
+document.body.classList.add("dark");
+
+else
+document.body.classList.remove("dark");
+
+};
+
+
+
+applySettings();
+
+
+</script>
+
+
+</body>
+
+</html>

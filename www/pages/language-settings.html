@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="bn">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Language Settings - Chaturveda</title>
+
+<style>
+
+body{
+    font-family:"Noto Sans Bengali",sans-serif;
+    background:#fafafa;
+    margin:0;
+    color:#222;
+}
+
+
+.header{
+
+background:#8b4513;
+color:white;
+padding:20px;
+font-size:22px;
+font-weight:bold;
+
+}
+
+
+
+.card{
+
+background:white;
+margin:15px;
+padding:20px;
+border-radius:15px;
+box-shadow:0 2px 8px #ddd;
+
+}
+
+
+
+label{
+
+font-weight:bold;
+display:block;
+margin-bottom:8px;
+
+}
+
+
+
+select{
+
+width:100%;
+padding:12px;
+font-size:16px;
+border-radius:10px;
+border:1px solid #ccc;
+margin-bottom:20px;
+
+}
+
+
+
+.switch{
+
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:15px 0;
+border-bottom:1px solid #eee;
+
+}
+
+
+
+button{
+
+background:#8b4513;
+color:white;
+border:none;
+padding:12px 20px;
+border-radius:10px;
+font-size:16px;
+
+}
+
+
+
+.preview{
+
+margin-top:20px;
+padding:15px;
+background:#fff4e6;
+border-radius:12px;
+
+}
+
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<div class="header">
+
+🌐 Language Settings
+
+</div>
+
+
+
+<div class="card">
+
+
+<label>
+App Language
+</label>
+
+
+<select id="language">
+
+
+<option value="bn">
+বাংলা
+</option>
+
+
+<option value="en">
+English
+</option>
+
+
+<option value="sa">
+संस्कृतम्
+</option>
+
+
+</select>
+
+
+
+
+<label>
+Script Preference
+</label>
+
+
+<select id="script">
+
+
+<option value="bengali">
+বাংলা লিপি
+</option>
+
+
+<option value="devanagari">
+देवनागरी
+</option>
+
+
+<option value="english">
+Roman English
+</option>
+
+
+</select>
+
+
+
+
+
+<div class="switch">
+
+<span>
+Sanskrit Transliteration
+</span>
+
+
+<input 
+type="checkbox"
+id="transliteration">
+
+
+</div>
+
+
+<br>
+
+
+<button onclick="saveLanguage()">
+
+💾 Save Language
+
+</button>
+
+
+
+<div class="preview">
+
+
+<h3>
+Preview
+</h3>
+
+
+<p id="previewText">
+
+ॐ अग्निमीळे पुरोहितं यज्ञस्य देवमृत्विजम्।
+
+</p>
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+<script>
+
+
+
+function saveLanguage(){
+
+
+localStorage.appLanguage =
+document.getElementById("language").value;
+
+
+
+localStorage.script =
+document.getElementById("script").value;
+
+
+
+localStorage.transliteration =
+document.getElementById("transliteration").checked;
+
+
+
+updatePreview();
+
+
+
+alert(
+"Language preferences saved"
+);
+
+
+}
+
+
+
+
+function updatePreview(){
+
+
+let script =
+localStorage.script ||
+"devanagari";
+
+
+
+let text =
+document.getElementById("previewText");
+
+
+
+if(script==="bengali"){
+
+
+text.innerHTML =
+"ওঁ অগ্নিমীলে পুরোহিতং যজ্ঞস্য দেবমৃত্বিজম্।";
+
+
+}
+
+
+
+else if(script==="english"){
+
+
+text.innerHTML =
+"Om Agnimīle Purohitaṃ Yajñasya Devam Ṛtvijam.";
+
+
+}
+
+
+
+else{
+
+
+text.innerHTML =
+"ॐ अग्निमीळे पुरोहितं यज्ञस्य देवमृत्विजम्।";
+
+
+}
+
+
+}
+
+
+
+
+
+function loadSettings(){
+
+
+document.getElementById("language").value =
+localStorage.appLanguage || "bn";
+
+
+document.getElementById("script").value =
+localStorage.script || "devanagari";
+
+
+document.getElementById("transliteration").checked =
+localStorage.transliteration==="true";
+
+
+
+updatePreview();
+
+
+}
+
+
+
+loadSettings();
+
+
+</script>
+
+
+
+</body>
+
+</html>

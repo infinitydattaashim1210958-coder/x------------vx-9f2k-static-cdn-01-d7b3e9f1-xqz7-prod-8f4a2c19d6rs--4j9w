@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="bn">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Search Settings - Chaturveda</title>
+
+
+<style>
+
+body{
+
+font-family:"Noto Sans Bengali",sans-serif;
+background:#fafafa;
+margin:0;
+color:#222;
+
+}
+
+
+.header{
+
+background:#8b4513;
+color:white;
+padding:20px;
+font-size:22px;
+font-weight:bold;
+
+}
+
+
+
+.card{
+
+background:white;
+margin:15px;
+padding:20px;
+border-radius:15px;
+box-shadow:0 2px 8px #ddd;
+
+}
+
+
+
+.setting{
+
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:15px 0;
+border-bottom:1px solid #eee;
+
+}
+
+
+.setting:last-child{
+
+border:none;
+
+}
+
+
+
+select{
+
+width:100%;
+padding:12px;
+border-radius:10px;
+border:1px solid #ccc;
+font-size:16px;
+
+}
+
+
+
+input[type="checkbox"]{
+
+width:22px;
+height:22px;
+
+}
+
+
+
+button{
+
+background:#8b4513;
+color:white;
+border:none;
+padding:12px 18px;
+border-radius:10px;
+font-size:16px;
+
+}
+
+
+.danger{
+
+background:#b22222;
+
+}
+
+
+
+.history{
+
+background:#fff4e6;
+padding:15px;
+border-radius:12px;
+margin-top:15px;
+
+}
+
+
+
+</style>
+
+</head>
+
+
+
+<body>
+
+
+
+<div class="header">
+
+🔍 Search Settings
+
+</div>
+
+
+
+
+<div class="card">
+
+
+<label>
+Default Search Language
+</label>
+
+
+<br>
+
+
+<select id="searchLanguage">
+
+
+<option value="all">
+All Languages
+</option>
+
+
+<option value="bn">
+বাংলা
+</option>
+
+
+<option value="sa">
+Sanskrit
+</option>
+
+
+<option value="en">
+English
+</option>
+
+
+</select>
+
+
+<br><br>
+
+
+
+
+<div class="setting">
+
+<span>
+🔤 Search Transliteration
+</span>
+
+
+<input 
+type="checkbox"
+id="translit">
+
+</div>
+
+
+
+<div class="setting">
+
+<span>
+📜 Search Mantra
+</span>
+
+
+<input 
+type="checkbox"
+id="mantra"
+checked>
+
+</div>
+
+
+
+
+<div class="setting">
+
+<span>
+📖 Search Sukta
+</span>
+
+
+<input 
+type="checkbox"
+id="sukta"
+checked>
+
+</div>
+
+
+
+
+<div class="setting">
+
+<span>
+🕉 Search Mandala
+</span>
+
+
+<input 
+type="checkbox"
+id="mandala"
+checked>
+
+</div>
+
+
+
+<br>
+
+
+
+<button onclick="saveSearchSettings()">
+
+💾 Save Settings
+
+</button>
+
+
+
+</div>
+
+
+
+
+<div class="card">
+
+
+<h3>
+🕘 Recent Searches
+</h3>
+
+
+<div class="history" id="history">
+
+No recent searches
+
+</div>
+
+
+<br>
+
+
+<button 
+class="danger"
+onclick="clearHistory()">
+
+Clear Search History
+
+</button>
+
+
+
+</div>
+
+
+
+
+
+<script>
+
+
+
+function saveSearchSettings(){
+
+
+localStorage.searchLanguage =
+document.getElementById("searchLanguage").value;
+
+
+
+localStorage.searchTranslit =
+document.getElementById("translit").checked;
+
+
+
+localStorage.searchMantra =
+document.getElementById("mantra").checked;
+
+
+
+localStorage.searchSukta =
+document.getElementById("sukta").checked;
+
+
+
+localStorage.searchMandala =
+document.getElementById("mandala").checked;
+
+
+
+alert(
+"Search settings saved"
+);
+
+
+}
+
+
+
+
+function clearHistory(){
+
+
+localStorage.removeItem(
+"searchHistory"
+);
+
+
+showHistory();
+
+
+alert(
+"Search history cleared"
+);
+
+
+}
+
+
+
+
+function showHistory(){
+
+
+let history =
+JSON.parse(
+localStorage.searchHistory || "[]"
+);
+
+
+
+let box =
+document.getElementById("history");
+
+
+
+if(history.length===0){
+
+box.innerHTML=
+"No recent searches";
+
+return;
+
+}
+
+
+
+box.innerHTML =
+history
+.map(item=>"🔎 "+item)
+.join("<br><br>");
+
+
+}
+
+
+
+
+function loadSettings(){
+
+
+document.getElementById("searchLanguage").value =
+localStorage.searchLanguage || "all";
+
+
+document.getElementById("translit").checked =
+localStorage.searchTranslit==="true";
+
+
+document.getElementById("mantra").checked =
+localStorage.searchMantra!=="false";
+
+
+document.getElementById("sukta").checked =
+localStorage.searchSukta!=="false";
+
+
+document.getElementById("mandala").checked =
+localStorage.searchMandala!=="false";
+
+
+showHistory();
+
+
+}
+
+
+
+loadSettings();
+
+
+
+</script>
+
+
+
+</body>
+
+</html>

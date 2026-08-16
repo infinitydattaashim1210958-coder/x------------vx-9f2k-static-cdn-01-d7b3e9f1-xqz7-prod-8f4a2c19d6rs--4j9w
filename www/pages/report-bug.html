@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Report Bug - Chaturveda</title>
+
+
+<style>
+
+body{
+font-family:"Noto Sans",sans-serif;
+background:#fafafa;
+margin:0;
+}
+
+.header{
+
+background:#8b4513;
+color:white;
+padding:22px;
+font-size:24px;
+
+}
+
+
+.card{
+
+background:white;
+margin:15px;
+padding:20px;
+border-radius:15px;
+box-shadow:0 2px 8px #ddd;
+
+}
+
+
+input,textarea{
+
+width:100%;
+padding:12px;
+margin:8px 0;
+border-radius:10px;
+border:1px solid #ccc;
+
+}
+
+
+textarea{
+height:120px;
+}
+
+
+button{
+
+background:#b22222;
+color:white;
+padding:12px 20px;
+border:none;
+border-radius:10px;
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<div class="header">
+🐞 Report a Bug
+</div>
+
+
+<div class="card">
+
+
+<label>
+Problem Title
+</label>
+
+<input placeholder="Example: Book not opening">
+
+
+<label>
+Description
+</label>
+
+<textarea placeholder="Explain the issue..."></textarea>
+
+
+<label>
+Device Information
+</label>
+
+<input placeholder="Android version / Device model">
+
+
+<br>
+
+
+<button onclick="report()">
+Send Report
+</button>
+
+
+</div>
+
+
+<script>
+
+function report(){
+
+alert("Bug report submitted. Thank you.");
+
+}
+
+</script>
+
+
+</body>
+
+</html>

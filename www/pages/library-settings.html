@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="bn">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Library Settings - Chaturveda</title>
+
+<style>
+
+body{
+    font-family:"Noto Sans Bengali",sans-serif;
+    background:#fafafa;
+    margin:0;
+    color:#222;
+}
+
+.header{
+    background:#8b4513;
+    color:white;
+    padding:20px;
+    font-size:22px;
+    font-weight:bold;
+}
+
+
+.card{
+
+background:white;
+margin:15px;
+padding:18px;
+border-radius:15px;
+box-shadow:0 2px 8px #ddd;
+
+}
+
+
+.item{
+
+padding:15px;
+border-bottom:1px solid #eee;
+display:flex;
+justify-content:space-between;
+align-items:center;
+
+}
+
+
+.item:last-child{
+
+border:none;
+
+}
+
+
+button{
+
+background:#8b4513;
+color:white;
+border:none;
+padding:10px 15px;
+border-radius:10px;
+
+}
+
+
+.danger{
+
+background:#b22222;
+
+}
+
+
+.storage{
+
+background:#fff4e6;
+padding:15px;
+border-radius:12px;
+margin-top:15px;
+
+}
+
+
+.progress{
+
+height:10px;
+background:#ddd;
+border-radius:10px;
+overflow:hidden;
+
+}
+
+
+.progress div{
+
+height:100%;
+width:35%;
+background:#8b4513;
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<div class="header">
+
+📚 Library Settings
+
+</div>
+
+
+
+<div class="card">
+
+
+<div class="item">
+
+<span>
+📥 Downloaded Books
+</span>
+
+<a href="#">
+Open
+</a>
+
+</div>
+
+
+
+<div class="item">
+
+<span>
+📖 Reading History
+</span>
+
+<a href="#">
+View
+</a>
+
+</div>
+
+
+
+<div class="item">
+
+<span>
+🔖 Bookmarks
+</span>
+
+<a href="#">
+Manage
+</a>
+
+</div>
+
+
+
+<div class="item">
+
+<span>
+⭐ Favorites
+</span>
+
+<a href="#">
+Manage
+</a>
+
+</div>
+
+
+</div>
+
+
+
+<div class="card">
+
+
+<h3>
+💾 Storage Usage
+</h3>
+
+
+<div class="storage">
+
+
+<p id="storageText">
+
+Calculating storage...
+
+</p>
+
+
+<div class="progress">
+
+<div id="storageBar"></div>
+
+</div>
+
+
+</div>
+
+
+</div>
+
+
+
+
+<div class="card">
+
+
+<h3>
+🧹 Cache Management
+</h3>
+
+
+<p>
+Temporary files, thumbnails and reading data can be cleared to free storage.
+</p>
+
+
+<button onclick="clearCache()" class="danger">
+
+Clear Cache
+
+</button>
+
+
+</div>
+
+
+
+<script>
+
+
+function calculateStorage(){
+
+
+let size=0;
+
+
+for(let key in localStorage){
+
+if(localStorage.hasOwnProperty(key)){
+
+size += localStorage[key].length;
+
+}
+
+}
+
+
+let kb=(size/1024).toFixed(2);
+
+
+document.getElementById("storageText").innerHTML=
+
+"App Data Used: "+kb+" KB";
+
+
+}
+
+
+
+function clearCache(){
+
+
+let confirmDelete=
+
+confirm(
+"Clear temporary reading data?"
+);
+
+
+if(confirmDelete){
+
+
+localStorage.removeItem("readingHistory");
+
+localStorage.removeItem("temporaryBooks");
+
+
+alert(
+"Cache cleared successfully"
+);
+
+
+calculateStorage();
+
+
+}
+
+
+}
+
+
+
+calculateStorage();
+
+
+</script>
+
+
+
+</body>
+
+</html>

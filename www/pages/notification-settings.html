@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="bn">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Notification Settings - Chaturveda</title>
+
+<style>
+
+body{
+    font-family:"Noto Sans Bengali",sans-serif;
+    background:#fafafa;
+    margin:0;
+    color:#222;
+}
+
+
+.header{
+
+background:#8b4513;
+color:white;
+padding:20px;
+font-size:22px;
+font-weight:bold;
+
+}
+
+
+
+.card{
+
+background:white;
+margin:15px;
+padding:20px;
+border-radius:15px;
+box-shadow:0 2px 8px #ddd;
+
+}
+
+
+
+.setting{
+
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:15px 0;
+border-bottom:1px solid #eee;
+
+}
+
+
+.setting:last-child{
+
+border:none;
+
+}
+
+
+
+input[type="checkbox"]{
+
+width:22px;
+height:22px;
+
+}
+
+
+
+input[type="time"]{
+
+width:100%;
+padding:12px;
+border-radius:10px;
+border:1px solid #ccc;
+font-size:16px;
+
+}
+
+
+
+button{
+
+background:#8b4513;
+color:white;
+border:none;
+padding:12px 20px;
+border-radius:10px;
+font-size:16px;
+
+}
+
+
+
+.info{
+
+background:#fff4e6;
+padding:15px;
+border-radius:12px;
+margin-top:15px;
+
+}
+
+
+</style>
+
+</head>
+
+
+
+<body>
+
+
+
+<div class="header">
+
+🔔 Notification Settings
+
+</div>
+
+
+
+
+<div class="card">
+
+
+
+<div class="setting">
+
+<span>
+📱 App Updates
+</span>
+
+<input 
+type="checkbox"
+id="updates">
+
+</div>
+
+
+
+<div class="setting">
+
+<span>
+📚 New Books
+</span>
+
+<input 
+type="checkbox"
+id="newBooks">
+
+</div>
+
+
+
+
+<div class="setting">
+
+<span>
+📖 Reading Reminder
+</span>
+
+<input 
+type="checkbox"
+id="reminder">
+
+</div>
+
+
+
+<br>
+
+
+<label>
+
+⏰ Reminder Time
+
+</label>
+
+
+<br>
+
+
+<input 
+type="time"
+id="time"
+value="06:00">
+
+
+
+<br><br>
+
+
+<button onclick="saveNotifications()">
+
+💾 Save Preferences
+
+</button>
+
+
+<div class="info">
+
+🕉 Daily Vedic Study Reminder
+
+<br><br>
+
+Read a mantra, sukta or scripture every day.
+
+</div>
+
+
+</div>
+
+
+
+
+<script>
+
+
+function saveNotifications(){
+
+
+localStorage.appUpdates =
+document.getElementById("updates").checked;
+
+
+localStorage.newBooks =
+document.getElementById("newBooks").checked;
+
+
+localStorage.readingReminder =
+document.getElementById("reminder").checked;
+
+
+localStorage.reminderTime =
+document.getElementById("time").value;
+
+
+
+alert(
+"Notification settings saved"
+);
+
+
+}
+
+
+
+
+function loadNotifications(){
+
+
+document.getElementById("updates").checked =
+localStorage.appUpdates==="true";
+
+
+document.getElementById("newBooks").checked =
+localStorage.newBooks==="true";
+
+
+document.getElementById("reminder").checked =
+localStorage.readingReminder==="true";
+
+
+document.getElementById("time").value =
+localStorage.reminderTime || "06:00";
+
+
+}
+
+
+loadNotifications();
+
+
+
+</script>
+
+
+
+</body>
+
+</html>
