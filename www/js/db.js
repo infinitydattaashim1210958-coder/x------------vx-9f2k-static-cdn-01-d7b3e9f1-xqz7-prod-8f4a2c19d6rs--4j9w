@@ -1131,7 +1131,30 @@ async function deletePack(scholarId) {
  * since pack filenames are derived from scholarId alone (packFileName()).
  */
 
-const attachedPacks = new Set();
+// ── LRU Pack Manager (SQLite max 10 ATTACH; we use 9 max) ───────────
+// Keeps track of attach order. When limit reached, evicts the oldest.
+const MAX_ATTACHED_PACKS = 9;
+const attachedPacks = new Set();          // currently attached scholar IDs
+const attachedPacksOrder = [];            // insertion-order list for LRU eviction
+
+async function evictOldestPackIfNeeded(sqlite) {
+  if (attachedPacks.size < MAX_ATTACHED_PACKS) return;
+  // Evict the least-recently-used (front of queue)
+  const oldest = attachedPacksOrder.shift();
+  if (oldest == null) return;
+  attachedPacks.delete(oldest);
+  const alias = packDbName(oldest);
+  try {
+    await sqlite.execute({ database: CORE_DB_NAME, statements: `DETACH DATABASE ${alias};` });
+  } catch (e) { /* already gone */ }
+}
+
+function markPackUsed(scholarId) {
+  // Move to end (most recently used)
+  const idx = attachedPacksOrder.indexOf(scholarId);
+  if (idx !== -1) attachedPacksOrder.splice(idx, 1);
+  attachedPacksOrder.push(scholarId);
+}
 
 async function getScholarsForShloka(kandaId, sargaId, shlokaId) {
 
@@ -1164,6 +1187,8 @@ async function getBhashyaForShlokaFromPack(scholarId, kandaId, sargaId, shlokaId
     const dir = directoryData();
     if (!fs || !dir) throw new Error("Filesystem plugin not available");
 
+    await evictOldestPackIfNeeded(sqlite);
+
     const uri = await fs.getUri({ path: packFileName(scholarId), directory: dir });
     let dbPath = uri.uri;
     if (dbPath.startsWith("file://")) dbPath = dbPath.replace("file://", "");
@@ -1181,6 +1206,7 @@ async function getBhashyaForShlokaFromPack(scholarId, kandaId, sargaId, shlokaId
 
     attachedPacks.add(scholarId);
   }
+  markPackUsed(scholarId);
 
   const result = await sqlite.query({
     database: CORE_DB_NAME,
@@ -1258,6 +1284,8 @@ async function getBhashyaForMantraFromPack(
 
 
 
+    await evictOldestPackIfNeeded(sqlite);
+
     try {
 
 
@@ -1325,6 +1353,7 @@ async function getBhashyaForMantraFromPack(
 
 
   }
+  markPackUsed(scholarId);
 
 
 
