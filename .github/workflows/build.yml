@@ -99,11 +99,11 @@ jobs:
         working-directory: android
         run: ./gradlew assembleDebug --stacktrace
 
-      - name: Rename APK to swadhyay.apk
-        run: mv android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/swadhyay.apk
+      - name: Rename APK to स्वाध्याय.apk
+        run: mv android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/स्वाध्याय.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Swadhyay
-          path: android/app/build/outputs/apk/debug/swadhyay.apk
+          name: स्वाध्याय
+          path: android/app/build/outputs/apk/debug/स्वाध्याय.apk
