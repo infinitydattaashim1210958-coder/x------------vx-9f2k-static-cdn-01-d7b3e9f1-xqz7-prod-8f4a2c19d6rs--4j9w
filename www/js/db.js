@@ -1131,11 +1131,25 @@ async function deletePack(scholarId) {
  * since pack filenames are derived from scholarId alone (packFileName()).
  */
 
-// ── LRU Pack Manager (SQLite max 10 ATTACH; we use 9 max) ───────────
+// ── LRU Pack Manager (SQLite max 10 ATTACH; we use 8 max, leaving margin) ──
 // Keeps track of attach order. When limit reached, evicts the oldest.
-const MAX_ATTACHED_PACKS = 9;
+const MAX_ATTACHED_PACKS = 8;
 const attachedPacks = new Set();          // currently attached scholar IDs
 const attachedPacksOrder = [];            // insertion-order list for LRU eviction
+
+// ── Attach lock ───────────────────────────────────────────────────
+// evictOldestPackIfNeeded()+ATTACH is a check-then-act sequence. Without
+// serializing it, two concurrent lookups (e.g. Promise.all over several
+// scholars for one mantra) can both pass the "room available" check before
+// either finishes attaching, overshooting SQLite's attached-database limit.
+// All attach/detach/evict operations go through this queue so only one
+// runs at a time.
+let attachQueue = Promise.resolve();
+function withAttachLock(fn) {
+  const run = attachQueue.then(fn, fn);
+  attachQueue = run.then(() => {}, () => {});
+  return run;
+}
 
 async function evictOldestPackIfNeeded(sqlite) {
   if (attachedPacks.size < MAX_ATTACHED_PACKS) return;
@@ -1154,6 +1168,50 @@ function markPackUsed(scholarId) {
   const idx = attachedPacksOrder.indexOf(scholarId);
   if (idx !== -1) attachedPacksOrder.splice(idx, 1);
   attachedPacksOrder.push(scholarId);
+}
+
+// ── Shared attach logic ──────────────────────────────────────────
+// Used by both Veda (getBhashyaForMantraFromPack) and Ramayana
+// (getBhashyaForShlokaFromPack) lookups, since they share the same
+// attach/eviction infrastructure. Runs inside the attach lock so
+// concurrent calls for different scholars can't race past the limit.
+async function ensurePackAttached(scholarId) {
+
+  return withAttachLock(async () => {
+
+    const sqlite = sqlitePlugin();
+    if (!sqlite) throw new Error("SQLite plugin not available");
+
+    const alias = packDbName(scholarId);
+
+    if (!attachedPacks.has(scholarId)) {
+      const fs = fsPlugin();
+      const dir = directoryData();
+      if (!fs || !dir) throw new Error("Filesystem plugin not available");
+
+      const uri = await fs.getUri({ path: packFileName(scholarId), directory: dir });
+      let dbPath = uri.uri;
+      if (dbPath.startsWith("file://")) dbPath = dbPath.replace("file://", "");
+
+      await evictOldestPackIfNeeded(sqlite);
+
+      try {
+        await sqlite.execute({ database: CORE_DB_NAME, statements: `DETACH DATABASE ${alias};` });
+      } catch (e) { /* not attached yet, ignore */ }
+
+      try {
+        await sqlite.execute({ database: CORE_DB_NAME, statements: `ATTACH DATABASE '${dbPath}' AS ${alias};` });
+      } catch (error) {
+        const msg = error.message || String(error);
+        if (!msg.includes("already in use")) throw error;
+      }
+
+      attachedPacks.add(scholarId);
+    }
+
+    markPackUsed(scholarId);
+    return alias;
+  });
 }
 
 async function getScholarsForShloka(kandaId, sargaId, shlokaId) {
@@ -1180,33 +1238,7 @@ async function getBhashyaForShlokaFromPack(scholarId, kandaId, sargaId, shlokaId
   const sqlite = sqlitePlugin();
   if (!sqlite) throw new Error("SQLite plugin not available");
 
-  const alias = packDbName(scholarId);
-
-  if (!attachedPacks.has(scholarId)) {
-    const fs = fsPlugin();
-    const dir = directoryData();
-    if (!fs || !dir) throw new Error("Filesystem plugin not available");
-
-    await evictOldestPackIfNeeded(sqlite);
-
-    const uri = await fs.getUri({ path: packFileName(scholarId), directory: dir });
-    let dbPath = uri.uri;
-    if (dbPath.startsWith("file://")) dbPath = dbPath.replace("file://", "");
-
-    try {
-      await sqlite.execute({ database: CORE_DB_NAME, statements: `DETACH DATABASE ${alias};` });
-    } catch (e) { /* not attached yet, ignore */ }
-
-    try {
-      await sqlite.execute({ database: CORE_DB_NAME, statements: `ATTACH DATABASE '${dbPath}' AS ${alias};` });
-    } catch (error) {
-      const msg = error.message || String(error);
-      if (!msg.includes("already in use")) throw error;
-    }
-
-    attachedPacks.add(scholarId);
-  }
-  markPackUsed(scholarId);
+  const alias = await ensurePackAttached(scholarId);
 
   const result = await sqlite.query({
     database: CORE_DB_NAME,
@@ -1230,133 +1262,12 @@ async function getBhashyaForMantraFromPack(
 
 ) {
 
-
   const sqlite = sqlitePlugin();
-
   if (!sqlite) {
     throw new Error("SQLite plugin not available");
   }
 
-  const alias = packDbName(scholarId);
-
-
-
-
-  if(!attachedPacks.has(scholarId)) {
-
-    const fs = fsPlugin();
-    const dir = directoryData();
-
-    if (!fs || !dir) {
-      throw new Error("Filesystem plugin not available");
-    }
-
-    const uri = await fs.getUri({
-
-      path: packFileName(scholarId),
-
-      directory: dir
-
-    });
-
-
-
-
-    let dbPath = uri.uri;
-
-
-
-
-    if(dbPath.startsWith("file://")) {
-
-
-      dbPath = dbPath.replace(
-
-        "file://",
-
-        ""
-
-      );
-
-
-    }
-
-
-
-
-    await evictOldestPackIfNeeded(sqlite);
-
-    try {
-
-
-      await sqlite.execute({
-
-        database: CORE_DB_NAME,
-
-
-        statements:
-
-          `DETACH DATABASE ${alias};`
-
-
-      });
-
-
-    }
-
-    catch(e){}
-
-
-
-
-    try {
-
-
-      await sqlite.execute({
-
-        database: CORE_DB_NAME,
-
-
-        statements:
-
-        `ATTACH DATABASE '${dbPath}' AS ${alias};`
-
-
-      });
-
-
-    }
-
-
-    catch(error) {
-
-
-      const msg =
-
-        error.message || String(error);
-
-
-
-      if(!msg.includes("already in use")) {
-
-        throw error;
-
-
-      }
-
-
-    }
-
-
-
-    attachedPacks.add(scholarId);
-
-
-  }
-  markPackUsed(scholarId);
-
-
-
+  const alias = await ensurePackAttached(scholarId);
 
   const result = await sqlite.query({
 
@@ -1391,6 +1302,7 @@ async function getBhashyaForMantraFromPack(
 
 async function detachPack(scholarId) {
 
+  return withAttachLock(async () => {
 
   const sqlite = sqlitePlugin();
   if (!sqlite) {
@@ -1451,6 +1363,7 @@ async function detachPack(scholarId) {
 
   }
 
+  });
 
 }
 
