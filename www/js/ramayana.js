@@ -185,13 +185,13 @@ async function downloadRamayana(onProgress) {
 
   // Write a tiny probe file to our accessible files/ directory just to
   // learn the absolute base path of the app's private storage.
-  // e.g. URI → "file:///data/user/0/com.kyronix.chaturveda/files/__probe"
+  // e.g. URI → "file:///data/user/0/com.kyronix.swadhyay/files/__probe"
   const PROBE = "__ramayana_probe";
-  await fs.writeFile({ path: PROBE, data: "1", directory: dir });
+  await fs.writeFile({ path: PROBE, data: "1", directory: dir, encoding: "utf8" });
   const probeUri = await fs.getUri({ path: PROBE, directory: dir });
   try { await fs.deleteFile({ path: PROBE, directory: dir }); } catch (e) {}
 
-  // probeAbsPath = "/data/user/0/com.kyronix.chaturveda/files/__ramayana_probe"
+  // probeAbsPath = "/data/user/0/com.kyronix.swadhyay/files/__ramayana_probe"
   const probeAbsPath = probeUri.uri.replace(/^file:\/\//, "");
 
   // filesIdx points to "/files/" in the path
@@ -203,11 +203,11 @@ async function downloadRamayana(onProgress) {
     );
   }
 
-  // appRoot = "/data/user/0/com.kyronix.chaturveda"
+  // appRoot = "/data/user/0/com.kyronix.swadhyay"
   const appRoot = probeAbsPath.substring(0, filesIdx);
 
   // CapacitorSQLite databases dir and file:
-  // /data/user/0/com.kyronix.chaturveda/databases/ramayanaSQLite.db
+  // /data/user/0/com.kyronix.swadhyay/databases/ramayanaSQLite.db
   const sqliteDbPath = `${appRoot}/databases/${RAMAYANA_SQLITE_FILENAME}`;
 
   // ── 4. Write DB to CapacitorSQLite's databases/ directory ────────
@@ -228,6 +228,7 @@ async function downloadRamayana(onProgress) {
     data:      "ok",
     directory: dir,
     recursive: true,
+    encoding:  "utf8",
   });
 }
 

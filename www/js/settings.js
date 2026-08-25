@@ -1,5 +1,5 @@
 /**
- * settings.js — Chaturveda Settings Manager
+ * settings.js — স্বাধ্যায় Settings Manager
  * Uses @capacitor/preferences (native) with localStorage fallback (web).
  */
 

@@ -1,5 +1,5 @@
 /**
- * db.js — SQLite access layer for Chaturveda
+ * db.js — SQLite access layer for স্বাধ্যায়
  *
  * Architecture:
  * - Core database:

@@ -1,5 +1,5 @@
 /**
- * app.js — Hash router + screen renderer for Chaturveda
+ * app.js — Hash router + screen renderer for স্বাধ্যায়
  * Covers: Vedas (4), Ramayana, Digital Library, Settings (all sections)
  */
 
@@ -1012,10 +1012,10 @@ async function screenSettings() {
     </div>
     <div class="section">
       <div class="sectionTitle">⭐ About</div>
-      <a class="item" href="#/settings/about"><span class="icon">🕉</span>About Chaturveda<span class="arrow">›</span></a>
+      <a class="item" href="#/settings/about"><span class="icon">🕉</span>About স্বাধ্যায়<span class="arrow">›</span></a>
     </div>
     <div class="settingsFooter">
-      <div style="color:var(--gold-bright);font-weight:bold;">Chaturveda</div>
+      <div style="color:var(--gold-bright);font-weight:bold;">স্বাধ্যায়</div>
       <div>Version 1.0.0 (Build 1)</div>
       <div>Developed by Ashim Datta</div>
       ${COPYRIGHT_HTML}
@@ -1542,9 +1542,9 @@ function renderInfoPage(title, bodyHtml) {
 async function screenPrivacyPolicy() {
   renderInfoPage("Privacy Policy", `
     <div class="infoCard"><h2>Privacy Policy</h2><p><strong>Effective Date:</strong> July 12, 2026</p>
-    <p>Chaturveda App is committed to respecting your privacy. This policy explains how we handle information when you use the app.</p></div>
+    <p>স্বাধ্যায় App is committed to respecting your privacy. This policy explains how we handle information when you use the app.</p></div>
     <div class="infoCard"><h2>1. Information We Collect</h2>
-    <p>Chaturveda collects minimal information necessary to function:</p>
+    <p>স্বাধ্যায় collects minimal information necessary to function:</p>
     <ul><li>App preferences stored locally on your device</li><li>Anonymous crash reports (via Firebase Crashlytics, if enabled)</li><li>Feedback you voluntarily submit</li></ul>
     <p>We do not collect passwords, financial information, contacts, SMS, photos, or biometric data.</p></div>
     <div class="infoCard"><h2>2. How We Use Information</h2>
@@ -1554,7 +1554,7 @@ async function screenPrivacyPolicy() {
     <div class="infoCard"><h2>4. Third-Party Services</h2>
     <p>The app may use Firebase Crashlytics and Google Play Services. These services operate under their own privacy policies.</p></div>
     <div class="infoCard"><h2>5. Children's Privacy</h2>
-    <p>Chaturveda is an educational app suitable for all ages. We do not knowingly collect data from children.</p></div>
+    <p>স্বাধ্যায় is an educational app suitable for all ages. We do not knowingly collect data from children.</p></div>
     <div class="infoCard"><h2>6. Contact</h2>
     <p>For privacy-related questions, contact: <strong>Ashim Datta</strong><br>Website: <a href="https://arsa-siddanto.blogspot.com" style="color:var(--gold);">arsa-siddanto.blogspot.com</a></p></div>
     <div class="infoCard" style="text-align:center;color:var(--ash);">${COPYRIGHT_HTML}</div>`);
@@ -1563,9 +1563,9 @@ async function screenPrivacyPolicy() {
 async function screenTerms() {
   renderInfoPage("Terms & Conditions", `
     <div class="infoCard"><h2>Terms & Conditions</h2><p><strong>Effective Date:</strong> July 12, 2026</p>
-    <p>By using Chaturveda App, you agree to these terms.</p></div>
+    <p>By using স্বাধ্যায় App, you agree to these terms.</p></div>
     <div class="infoCard"><h2>1. License</h2>
-    <p>You are granted a personal, non-commercial license to use Chaturveda App for educational purposes. You may not sell, modify, or redistribute the app.</p></div>
+    <p>You are granted a personal, non-commercial license to use স্বাধ্যায় App for educational purposes. You may not sell, modify, or redistribute the app.</p></div>
     <div class="infoCard"><h2>2. Acceptable Use</h2>
     <ul><li>Use the app lawfully and respectfully</li><li>Do not attempt to reverse engineer or modify the app</li><li>Do not use automated tools to scrape content</li></ul></div>
     <div class="infoCard"><h2>3. Intellectual Property</h2>
@@ -1583,21 +1583,21 @@ async function screenDisclaimer() {
   renderInfoPage("Disclaimer", `
     <div class="infoCard"><h2>⚖ Disclaimer</h2></div>
     <div class="infoCard"><h2>1. General Information</h2>
-    <p>Chaturveda is a digital platform for reading and exploring Vedic literature, Sanskrit texts, and the Valmiki Ramayana. Content is provided for educational, spiritual, and cultural purposes only.</p></div>
+    <p>স্বাধ্যায় is a digital platform for reading and exploring Vedic literature, Sanskrit texts, and the Valmiki Ramayana. Content is provided for educational, spiritual, and cultural purposes only.</p></div>
     <div class="infoCard"><h2>2. Accuracy</h2>
     <p>We make reasonable efforts to provide accurate information, but do not guarantee all texts, translations, or interpretations are error-free. Consult original scriptures and qualified scholars for academic or religious guidance.</p></div>
     <div class="infoCard"><h2>3. Religious & Philosophical Content</h2>
-    <p>Interpretations may vary among different scholars and traditions. Chaturveda does not promote any particular school of thought or disrespect any belief system.</p></div>
+    <p>Interpretations may vary among different scholars and traditions. স্বাধ্যায় does not promote any particular school of thought or disrespect any belief system.</p></div>
     <div class="infoCard"><h2>4. No Professional Advice</h2>
     <p>Content is not professional religious, legal, medical, or financial advice.</p></div>
     <div class="infoCard"><h2>5. Liability</h2>
-    <p>Chaturveda and its developer are not liable for any loss or consequence arising from use of this application.</p></div>
-    <div class="infoCard" style="text-align:center;color:var(--ash);">Chaturveda v1.0.0<br>${COPYRIGHT_HTML}</div>`);
+    <p>স্বাধ্যায় and its developer are not liable for any loss or consequence arising from use of this application.</p></div>
+    <div class="infoCard" style="text-align:center;color:var(--ash);">স্বাধ্যায় v1.0.0<br>${COPYRIGHT_HTML}</div>`);
 }
 
 async function screenLicenses() {
   renderInfoPage("Open Source Licenses", `
-    <div class="infoCard"><h2>Open Source Licenses</h2><p>Chaturveda App uses the following open source components.</p></div>
+    <div class="infoCard"><h2>Open Source Licenses</h2><p>স্বাধ্যায় App uses the following open source components.</p></div>
     <div class="infoCard"><h2>Capacitor (Apache 2.0)</h2><p>Copyright © Ionic. Used for native Android platform integration.</p></div>
     <div class="infoCard"><h2>@capacitor-community/sqlite (MIT)</h2><p>SQLite plugin for Capacitor. Powers the Veda and Ramayana databases.</p></div>
     <div class="infoCard"><h2>@capacitor/filesystem (Apache 2.0)</h2><p>File storage for downloaded Bhāṣya packs and library books.</p></div>
@@ -1612,8 +1612,8 @@ async function screenLicenses() {
 
 async function screenContact() {
   renderInfoPage("Contact Us", `
-    <div class="infoCard"><h2>📧 Chaturveda Support</h2>
-    <p>For questions, suggestions, or technical issues regarding Chaturveda App, contact the development team.</p></div>
+    <div class="infoCard"><h2>📧 স্বাধ্যায় Support</h2>
+    <p>For questions, suggestions, or technical issues regarding স্বাধ্যায় App, contact the development team.</p></div>
     <div class="infoCard">
       <div style="display:flex;flex-direction:column;gap:14px;">
         <div><div style="color:var(--gold);font-size:.78rem;margin-bottom:4px;">DEVELOPER</div><div>Ashim Datta</div></div>
@@ -1630,7 +1630,7 @@ async function screenFeedback() {
   root.innerHTML = `
     <div class="infoCard" style="margin:16px;">
       <h2>💡 Send Feedback</h2>
-      <p style="color:var(--ash);margin-bottom:16px;">Help us improve Chaturveda by sharing your suggestions.</p>
+      <p style="color:var(--ash);margin-bottom:16px;">Help us improve স্বাধ্যায় by sharing your suggestions.</p>
       <textarea id="feedbackText" placeholder="Write your feedback here…" style="width:100%;height:140px;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--parchment);font-size:.95rem;font-family:inherit;resize:vertical;"></textarea>
       <br><br>
       <button id="submitFeedback" class="primaryBtn">Submit Feedback</button>
@@ -1683,8 +1683,8 @@ async function screenReportBug() {
 async function screenFAQ() {
   renderInfoPage("Help & FAQ", `
     <div class="infoCard"><h2>❓ Help & FAQ</h2></div>
-    <div class="infoCard"><div class="faqQ">What is Chaturveda?</div><div class="faqA">Chaturveda is a digital platform for reading and exploring the four Vedas (Rigveda, Yajurveda, Samaveda, Atharvaveda) and the Valmiki Ramayana with Sanskrit text, word-by-word analysis, and translations.</div></div>
-    <div class="infoCard"><div class="faqQ">Is Chaturveda free?</div><div class="faqA">Yes, Chaturveda provides free access to Vedic knowledge resources.</div></div>
+    <div class="infoCard"><div class="faqQ">What is স্বাধ্যায়?</div><div class="faqA">স্বাধ্যায় is a digital platform for reading and exploring the four Vedas (Rigveda, Yajurveda, Samaveda, Atharvaveda) and the Valmiki Ramayana with Sanskrit text, word-by-word analysis, and translations.</div></div>
+    <div class="infoCard"><div class="faqQ">Is স্বাধ্যায় free?</div><div class="faqA">Yes, স্বাধ্যায় provides free access to Vedic knowledge resources.</div></div>
     <div class="infoCard"><div class="faqQ">Can I read texts offline?</div><div class="faqA">The core Veda database and Ramayana database are bundled with the app and work offline. Bhāṣya (commentary) packs need to be downloaded once and then work offline. Library books must be downloaded individually.</div></div>
     <div class="infoCard"><div class="faqQ">How do I download a Bhāṣya (commentary)?</div><div class="faqA">Open any mantra, select a language tab, then tap the "ডাউনলোড করুন" button next to any scholar's name. Each pack downloads once and then works offline.</div></div>
     <div class="infoCard"><div class="faqQ">How do I search across both Vedas and Ramayana?</div><div class="faqA">Tap the search icon (⌕) in the top bar. Use the "সব / Vedas / Ramayana" chips to filter your search scope.</div></div>
@@ -1694,14 +1694,14 @@ async function screenFAQ() {
 }
 
 async function screenAbout() {
-  renderInfoPage("About Chaturveda", `
+  renderInfoPage("About স্বাধ্যায়", `
     <div class="infoCard" style="text-align:center;">
       <div style="font-size:3rem;margin-bottom:12px;">🕉</div>
-      <h2 style="font-size:1.5rem;">Chaturveda</h2>
+      <h2 style="font-size:1.5rem;">স্বাধ্যায়</h2>
       <p style="color:var(--ash);">Version 1.0.0 (Build 1)</p>
     </div>
     <div class="infoCard"><h2>About</h2>
-    <p>Chaturveda is a digital platform dedicated to preserving and presenting the timeless knowledge of Vedic literature, Sanskrit scriptures, and the Valmiki Ramayana.</p>
+    <p>স্বাধ্যায় is a digital platform dedicated to preserving and presenting the timeless knowledge of Vedic literature, Sanskrit scriptures, and the Valmiki Ramayana.</p>
     <p>The application combines ancient wisdom with modern technology to create a simple, accessible, and immersive reading experience for students, researchers, and knowledge seekers.</p>
     <blockquote style="background:rgba(212,162,76,.08);padding:14px;border-left:3px solid var(--gold);border-radius:6px;font-style:italic;margin:14px 0;">"Knowledge preserved through time becomes wisdom for future generations."</blockquote></div>
     <div class="infoCard"><h2>Core Features</h2>
@@ -1715,10 +1715,10 @@ async function screenAbout() {
       <li>🔤 Adjustable font size and family</li>
     </ul></div>
     <div class="infoCard"><h2>🧑‍💻 Developer</h2>
-    <p><strong>Ashim Datta</strong><br>Founder & Developer of Chaturveda</p>
+    <p><strong>Ashim Datta</strong><br>Founder & Developer of স্বাধ্যায়</p>
     <p>Website: <a href="https://arsa-siddanto.blogspot.com" style="color:var(--gold-bright);">arsa-siddanto.blogspot.com</a></p></div>
     <div class="infoCard" style="text-align:center;color:var(--ash);">
-      <div>Chaturveda v1.0.0 · Build 1</div>
+      <div>স্বাধ্যায় v1.0.0 · Build 1</div>
       ${COPYRIGHT_HTML}
     </div>`);
 }
