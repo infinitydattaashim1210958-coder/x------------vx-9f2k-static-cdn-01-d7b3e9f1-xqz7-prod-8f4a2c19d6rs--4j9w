@@ -27,35 +27,41 @@ jobs:
       - name: Install npm dependencies
         run: npm install
 
+      # ── Core database (bundled in APK) ──────────────────────────────
+      # core.db is always bundled — downloaded from the DB repo release.
       - name: Download core database from latest Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p www/assets/databases
-          gh release download v1 --repo "infinitydattaashim1210958-coder/-------------vx-9f2k-static-cdn-01-d7b3e9f1-xqz7-prod-8f4a2c19d6rs--4j9w" --pattern "core.db.gz" --clobber --dir .
+          gh release download v1 \
+            --repo "infinitydattaashim1210958-coder/-------------vx-9f2k-static-cdn-01-d7b3e9f1-xqz7-prod-8f4a2c19d6rs--4j9w" \
+            --pattern "core.db.gz" --clobber --dir .
           gunzip -f core.db.gz
           mv core.db www/assets/databases/core.db
           echo "core.db size: $(du -sh www/assets/databases/core.db)"
 
-      - name: Download Ramayana database from latest Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release download v1 --repo "infinitydattaashim1210958-coder/-------------vx-9f2k-static-cdn-01-d7b3e9f1-xqz7-prod-8f4a2c19d6rs--4j9w" --pattern "ramayana.db.gz" --clobber --dir .
-          gunzip -f ramayana.db.gz
-          mv ramayana.db www/assets/databases/ramayana.db
-          echo "ramayana.db size: $(du -sh www/assets/databases/ramayana.db)"
+      # ── Ramayana database (NOT bundled) ─────────────────────────────
+      # ramayana.db is NO LONGER shipped inside the APK.
+      # It lives in the DB repo at /ramayana-kanpur-iit/ramayana.db.gz
+      # and is downloaded at runtime by ramayana.js → downloadRamayana().
+      # Nothing to do here at build time.
 
-
+      # ── Mahabharata database (NOT bundled — coming soon) ────────────
+      # mahabharata.js has been removed. This step is skipped until
+      # Mahabharata support is re-added. continue-on-error keeps the
+      # build green so the APK is still produced.
       - name: Download Mahabharata database from latest Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
         run: |
-          gh release download v1 --repo "infinitydattaashim1210958-coder/-------------vx-9f2k-static-cdn-01-d7b3e9f1-xqz7-prod-8f4a2c19d6rs--4j9w" --pattern "mahabharata.db.gz" --clobber --dir .
+          gh release download v1 \
+            --repo "infinitydattaashim1210958-coder/-------------vx-9f2k-static-cdn-01-d7b3e9f1-xqz7-prod-8f4a2c19d6rs--4j9w" \
+            --pattern "mahabharata.db.gz" --clobber --dir .
           gunzip -f mahabharata.db.gz
           mv mahabharata.db www/assets/databases/mahabharata.db
           echo "mahabharata.db size: $(du -sh www/assets/databases/mahabharata.db)"
-          
 
       - name: List databases
         run: ls -lh www/assets/databases/
