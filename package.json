@@ -1,7 +1,7 @@
 {
   "name": "স্বাধ্যায়",
   "version": "2.0.0",
-  "description": "Chaturveda — offline Vedic scripture app with SQLite-backed navigation and search",
+  "description": "সনাতন ধর্মশাস্ত্র",
 
   "scripts": {
     "build": "echo 'static site, no build step'",
