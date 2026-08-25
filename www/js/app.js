@@ -414,7 +414,113 @@ async function screenMantra(code, refEncodedWithQuery) {
    RAMAYANA SCREENS
 ══════════════════════════════════════════════════════ */
 
+/**
+ * Ramayana download gate.
+ *
+ * Renders a full-screen download prompt if ramayana.db has not been
+ * fetched yet. Returns true if the DB is ready (caller may proceed),
+ * false if the download UI was shown (caller must return immediately).
+ *
+ * On successful download it re-initialises RamayanaDB, repopulates
+ * kandaCache, then navigates to the requested destination hash so the
+ * user lands exactly where they tapped.
+ *
+ * @param {string} [destHash]  Hash to navigate to after download,
+ *                             e.g. "#/ramayana". Defaults to "#/ramayana".
+ */
+async function ramayanaDownloadGate(destHash = "#/ramayana") {
+  // Fast path: DB already open and init'd — no gate needed.
+  if (window.RamayanaDB._initDone) return true;
+
+  const alreadyDl = await window.RamayanaDB.isRamayanaDownloaded();
+  if (alreadyDl) {
+    // Downloaded but not yet connected in this session — init now.
+    try {
+      await window.RamayanaDB.initDB();
+      return true;
+    } catch (e) {
+      if (!e.needsDownload) throw e;
+    }
+  }
+
+  // ── Show download gate UI ──────────────────────────────────────
+  showBack(true);
+  setTitle("বাল্মীকি রামায়ণ");
+
+  root.innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;padding:28px 20px;text-align:center;">
+      <div style="font-size:3rem;margin-bottom:16px;">🏹</div>
+      <h2 style="margin:0 0 8px;">বাল্মীকি রামায়ণ</h2>
+      <p style="opacity:.7;margin:0 0 8px;font-size:.9rem;">534 Sargas · 17,902 Shlokas</p>
+      <p style="opacity:.6;margin:0 0 28px;font-size:.85rem;">
+        রামায়ণ ডেটাবেস একবার ডাউনলোড করতে হবে (~৩০–৫০ MB)।<br>
+        এরপর সম্পূর্ণ অফলাইনে পড়া যাবে।
+      </p>
+      <button id="dlRamayanaBtn" style="
+        background:var(--gold,#c8972b);color:#1a1200;border:none;
+        padding:14px 32px;border-radius:12px;font-size:1rem;
+        font-weight:700;cursor:pointer;min-width:200px;">
+        ডাউনলোড করুন
+      </button>
+      <div id="dlRamayanaStatus" style="margin-top:18px;font-size:.9rem;min-height:24px;opacity:.8;"></div>
+      <div id="dlRamayanaBar" style="
+        display:none;width:240px;height:6px;background:rgba(255,255,255,.15);
+        border-radius:4px;margin-top:12px;overflow:hidden;">
+        <div id="dlRamayanaFill" style="height:100%;width:0%;background:var(--gold,#c8972b);
+          transition:width .3s;border-radius:4px;"></div>
+      </div>
+    </div>`;
+
+  const btn       = root.querySelector("#dlRamayanaBtn");
+  const statusEl  = root.querySelector("#dlRamayanaStatus");
+  const barEl     = root.querySelector("#dlRamayanaBar");
+  const fillEl    = root.querySelector("#dlRamayanaFill");
+
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    btn.textContent = "ডাউনলোড হচ্ছে…";
+    barEl.style.display = "block";
+
+    // Animate the bar indeterminately while downloading
+    let pct = 0;
+    const ticker = setInterval(() => {
+      pct = pct < 90 ? pct + 2 : pct;
+      fillEl.style.width = pct + "%";
+    }, 300);
+
+    try {
+      await window.RamayanaDB.downloadRamayana(msg => {
+        if (statusEl) statusEl.textContent = msg;
+      });
+
+      clearInterval(ticker);
+      fillEl.style.width = "100%";
+      statusEl.textContent = "ইনিশিয়ালাইজ হচ্ছে…";
+
+      window.RamayanaDB.resetInit();
+      await window.RamayanaDB.initDB();
+
+      // Repopulate kanda cache so subsequent screens don't re-fetch
+      kandaCache = {};
+      await ensureKandaCache();
+
+      // Navigate to where the user wanted to go
+      window.location.hash = destHash;
+
+    } catch (e) {
+      clearInterval(ticker);
+      btn.disabled = false;
+      btn.textContent = "আবার চেষ্টা করুন";
+      statusEl.textContent = "ব্যর্থ: " + (e.message || e);
+      fillEl.style.width = "0%";
+    }
+  });
+
+  return false; // gate shown; caller must return
+}
+
 async function screenRamayana() {
+  if (!await ramayanaDownloadGate("#/ramayana")) return;
   showBack(true);
   setTitle("বাল্মীকি রামায়ণ");
   await ensureKandaCache();
@@ -439,6 +545,7 @@ async function screenRamayana() {
 }
 
 async function screenRamayanaKanda(kandaId) {
+  if (!await ramayanaDownloadGate(`#/ramayana/kanda/${kandaId}`)) return;
   showBack(true);
   await ensureKandaCache();
   const kanda = kandaCache[kandaId];
@@ -458,6 +565,7 @@ async function screenRamayanaKanda(kandaId) {
 }
 
 async function screenRamayanaSarga(sargaId) {
+  if (!await ramayanaDownloadGate(`#/ramayana/sarga/${sargaId}`)) return;
   showBack(true);
   setTitle("Sarga লোড হচ্ছে…");
 
@@ -489,6 +597,7 @@ async function screenRamayanaSarga(sargaId) {
 }
 
 async function screenRamayanaShloka(refEncoded) {
+  if (!await ramayanaDownloadGate(`#/ramayana/shloka/${refEncoded}`)) return;
   showBack(true);
   const ref = decodeURIComponent(refEncoded);
   setTitle("Shloka লোড হচ্ছে…");
@@ -838,7 +947,7 @@ async function runSearch(term, scope = "all") {
       }
     }
 
-    if (scope !== "vedas") {
+    if (scope !== "vedas" && window.RamayanaDB._initDone) {
       const rResults = await window.RamayanaDB.searchRamayana(term, 30);
       if (rResults.length) {
         html += `<div class="listHeader" style="margin:14px 0 8px;">Ramayana (${rResults.length})</div>`;
@@ -1690,12 +1799,18 @@ async function boot() {
     </div>`;
   await ChaturvedaSettings.apply();
   try {
-    // Sequential on purpose: both initDB() calls run copyFromAssets()
-    // against the same www/assets/databases/ folder. Running them in
-    // parallel races and intermittently throws
-    // "No available connection for database ramayana".
+    // VedaDB must always succeed — it is bundled.
     await window.VedaDB.initDB();
-    await window.RamayanaDB.initDB();
+
+    // RamayanaDB is now downloadable (not bundled). A missing DB is
+    // expected on first launch — we catch the sentinel error and let
+    // the router show the download gate instead of crashing on boot.
+    try {
+      await window.RamayanaDB.initDB();
+    } catch (e) {
+      if (!e.needsDownload) throw e; // re-throw genuine errors only
+      // DB not downloaded yet — screenRamayana() will show the download UI
+    }
     router();
   } catch (e) {
     const stackInfo = (e && e.stack) ? e.stack.replace(/\n/g, "<br>") : "no stack";

@@ -1440,6 +1440,14 @@ async function detachPack(scholarId) {
 
     attachedPacks.delete(scholarId);
 
+    // CRITICAL FIX: also purge from the LRU order array.
+    // Without this, the next evictOldestPackIfNeeded() call will shift()
+    // this ghost ID, perform a no-op Set delete + silent DETACH failure,
+    // and never actually free an attach slot — eventually hitting SQLite's
+    // hard "max 10 attached databases" limit (error seen in production).
+    const _lruIdx = attachedPacksOrder.indexOf(scholarId);
+    if (_lruIdx !== -1) attachedPacksOrder.splice(_lruIdx, 1);
+
 
   }
 
