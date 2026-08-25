@@ -10,100 +10,181 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # ─────────────────────────────────────────────
+      # Checkout repository
+      # ─────────────────────────────────────────────
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      # ─────────────────────────────────────────────
+      # Node.js
+      # ─────────────────────────────────────────────
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
+      # ─────────────────────────────────────────────
+      # Java 17
+      # ─────────────────────────────────────────────
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
+      # ─────────────────────────────────────────────
+      # Install dependencies
+      # ─────────────────────────────────────────────
       - name: Install npm dependencies
         run: npm install
 
-      # ── Core database (bundled in APK) ──────────────────────────────
-      # core.db is always bundled — downloaded from the DB repo release.
+      # ─────────────────────────────────────────────
+      # Core database
+      # Downloaded from database repository Release
+      # ─────────────────────────────────────────────
       - name: Download core database from latest Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p www/assets/databases
+
           gh release download v1 \
             --repo "infinitydattaashim1210958-coder/-------------vx-9f2k-static-cdn-01-d7b3e9f1-xqz7-prod-8f4a2c19d6rs--4j9w" \
-            --pattern "core.db.gz" --clobber --dir .
+            --pattern "core.db.gz" \
+            --clobber \
+            --dir .
+
           gunzip -f core.db.gz
+
           mv core.db www/assets/databases/core.db
-          echo "core.db size: $(du -sh www/assets/databases/core.db)"
 
-      # ── Ramayana database (NOT bundled) ─────────────────────────────
-      # ramayana.db is NO LONGER shipped inside the APK.
-      # It lives in the DB repo at /ramayana-kanpur-iit/ramayana.db.gz
-      # and is downloaded at runtime by ramayana.js → downloadRamayana().
-      # Nothing to do here at build time.
+          echo "core.db size:"
+          du -sh www/assets/databases/core.db
 
-      # ── Mahabharata database (NOT bundled — coming soon) ────────────
-      # mahabharata.js has been removed. This step is skipped until
-      # Mahabharata support is re-added. continue-on-error keeps the
-      # build green so the APK is still produced.
-      - name: Download Mahabharata database from latest Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
-        run: |
-          gh release download v1 \
-            --repo "infinitydattaashim1210958-coder/-------------vx-9f2k-static-cdn-01-d7b3e9f1-xqz7-prod-8f4a2c19d6rs--4j9w" \
-            --pattern "mahabharata.db.gz" --clobber --dir .
-          gunzip -f mahabharata.db.gz
-          mv mahabharata.db www/assets/databases/mahabharata.db
-          echo "mahabharata.db size: $(du -sh www/assets/databases/mahabharata.db)"
+      # ─────────────────────────────────────────────
+      # Ramayana database
+      #
+      # NOT bundled into APK.
+      # It is downloaded at runtime by ramayana.js.
+      # ─────────────────────────────────────────────
 
+      # ─────────────────────────────────────────────
+      # Mahabharata database
+      #
+      # NOT bundled because Mahabharata support
+      # has currently been removed.
+      # ─────────────────────────────────────────────
+
+      # ─────────────────────────────────────────────
+      # Check databases
+      # ─────────────────────────────────────────────
       - name: List databases
-        run: ls -lh www/assets/databases/
+        run: |
+          echo "Databases included in APK:"
+          ls -lh www/assets/databases/
 
+      # ─────────────────────────────────────────────
+      # Add Android platform
+      # ─────────────────────────────────────────────
       - name: Add Android platform
         run: npx cap add android
 
+      # ─────────────────────────────────────────────
+      # Generate icons and splash screen
+      # ─────────────────────────────────────────────
       - name: Generate app icons and splash screen
         run: npx @capacitor/assets generate --android
 
-      - name: Sync web assets + plugins into Android project
+      # ─────────────────────────────────────────────
+      # Sync Capacitor
+      # ─────────────────────────────────────────────
+      - name: Sync web assets and plugins
         run: npx cap sync android
 
+      # ─────────────────────────────────────────────
+      # Make Gradle executable
+      # ─────────────────────────────────────────────
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
-      - name: Do not compress .db assets (avoids OOM on large SQLite files)
+      # ─────────────────────────────────────────────
+      # Prevent compression of SQLite database
+      # This helps avoid excessive memory usage.
+      # ─────────────────────────────────────────────
+      - name: Do not compress .db assets
         run: |
           BUILD_GRADLE="android/app/build.gradle"
+
           if ! grep -q "aaptOptions" "$BUILD_GRADLE"; then
             sed -i '/^android {/a\    aaptOptions { noCompress "db" }' "$BUILD_GRADLE"
           fi
+
           echo "----- aaptOptions after patch -----"
           grep -n "aaptOptions" -A 2 "$BUILD_GRADLE"
 
-      - name: Increase Gradle daemon heap size
+      # ─────────────────────────────────────────────
+      # Increase Gradle memory
+      # ─────────────────────────────────────────────
+      - name: Configure Gradle memory
         run: |
-          {
-            echo "org.gradle.jvmargs=-Xmx6144m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8"
-            echo "org.gradle.daemon=false"
-          } >> android/gradle.properties
+          cat >> android/gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx6144m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8
+          org.gradle.daemon=false
+          EOF
+
+          echo "----- gradle.properties -----"
           cat android/gradle.properties
 
+      # ─────────────────────────────────────────────
+      # Build Debug APK
+      # ─────────────────────────────────────────────
       - name: Build স্বাধ্যায় APK
         working-directory: android
-        run: ./gradlew assembleDebug --stacktrace
+        run: |
+          ./gradlew assembleDebug --stacktrace
 
-      - name: Rename APK to স্বাধ্যায়.apk
-        run: mv android/app/build/outputs/apk/debug/স্বাধ্যায়.apk android/app/build/outputs/apk/debug/স্বাধ্যায়.apk
+      # ─────────────────────────────────────────────
+      # Verify APK was created
+      # ─────────────────────────────────────────────
+      - name: Verify APK
+        run: |
+          APK_DIR="android/app/build/outputs/apk/debug"
 
+          echo "----- APK output directory -----"
+          ls -lah "$APK_DIR"
+
+          if [ ! -f "$APK_DIR/app-debug.apk" ]; then
+            echo "ERROR: app-debug.apk was not created."
+            exit 1
+          fi
+
+          echo "APK successfully created:"
+          ls -lh "$APK_DIR/app-debug.apk"
+
+      # ─────────────────────────────────────────────
+      # Rename APK
+      #
+      # Use ASCII filename to avoid Unicode filename
+      # problems in GitHub Actions.
+      # ─────────────────────────────────────────────
+      - name: Rename APK
+        run: |
+          APK_DIR="android/app/build/outputs/apk/debug"
+
+          mv "$APK_DIR/app-debug.apk" "$APK_DIR/swadhyay.apk"
+
+          echo "----- Final APK -----"
+          ls -lh "$APK_DIR/swadhyay.apk"
+
+      # ─────────────────────────────────────────────
+      # Upload APK
+      #
+      # Artifact is still named স্বাধ্যায়.
+      # ─────────────────────────────────────────────
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: স্বাধ্যায়
-          path: android/app/build/outputs/apk/debug/স্বাধ্যায়.apk
+          path: android/app/build/outputs/apk/debug/swadhyay.apk
+          if-no-files-found: error
