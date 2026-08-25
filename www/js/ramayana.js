@@ -90,6 +90,42 @@ function rBlobToBase64(blob) {
   });
 }
 
+/**
+ * Write a large Blob to an absolute native path in small chunks, using
+ * writeFile for the first chunk and appendFile for the rest.
+ *
+ * WHY: Capacitor's JS<->native bridge has a payload-size ceiling (Android's
+ * Binder transaction buffer is ~1MB). Converting a large DB (tens of MB) to
+ * one giant base64 string and sending it in a single writeFile() call can
+ * get truncated/corrupted in transit, which surfaces on the native side as
+ * "The supplied data is not valid base64 content." Chunking keeps each
+ * bridge call small and reliable.
+ */
+async function rWriteBlobChunked(fs, absPath, blob, onProgress) {
+  const CHUNK_BYTES = 2 * 1024 * 1024; // 2MB raw per chunk (safely under bridge limits)
+  const total = blob.size;
+  let offset = 0;
+  let first = true;
+
+  while (offset < total) {
+    const slice = blob.slice(offset, offset + CHUNK_BYTES);
+    const base64Chunk = await rBlobToBase64(slice);
+
+    if (first) {
+      await fs.writeFile({ path: absPath, data: base64Chunk, recursive: true });
+      first = false;
+    } else {
+      await fs.appendFile({ path: absPath, data: base64Chunk });
+    }
+
+    offset += CHUNK_BYTES;
+    if (onProgress) {
+      const pct = Math.min(100, Math.round((offset / total) * 100));
+      onProgress(`ইনস্টল হচ্ছে… ${pct}%`);
+    }
+  }
+}
+
 /* ── Download & storage ──────────────────────────────────────────── */
 
 /**
@@ -142,7 +178,7 @@ async function downloadRamayana(onProgress) {
   // ── 2. Decompress ────────────────────────────────────────────────
   if (onProgress) onProgress("আনপ্যাক হচ্ছে…");
   const dbBlob = await rDecompressGzip(buffer);
-  const base64  = await rBlobToBase64(dbBlob);
+  console.log("[ramayana] decompressed size:", dbBlob.size, "bytes");
 
   // ── 3. Discover CapacitorSQLite databases/ path ──────────────────
   if (onProgress) onProgress("ইনস্টল হচ্ছে…");
@@ -177,12 +213,11 @@ async function downloadRamayana(onProgress) {
   // ── 4. Write DB to CapacitorSQLite's databases/ directory ────────
   // Capacitor Filesystem supports absolute paths when no directory is given.
   // The app has full RW permission over its own /databases/ folder.
-  await fs.writeFile({
-    path:      sqliteDbPath,
-    data:      base64,
-    recursive: true,
-    // No "directory:" → treated as absolute path on Android
-  });
+  // Written in small chunks (see rWriteBlobChunked) to avoid exceeding the
+  // Capacitor JS<->native bridge payload limit, which was corrupting the
+  // base64 payload for this large database and causing:
+  // "The supplied data is not valid base64 content."
+  await rWriteBlobChunked(fs, sqliteDbPath, dbBlob, onProgress);
 
   // ── 5. Write sentinel so isRamayanaDownloaded() returns true ─────
   try {
