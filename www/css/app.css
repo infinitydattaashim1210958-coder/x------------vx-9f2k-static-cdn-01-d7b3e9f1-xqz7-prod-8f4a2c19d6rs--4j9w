@@ -418,3 +418,26 @@ a{color:inherit;text-decoration:none;}
 
 /* Ramayana shloka display tweaks */
 .mantraMeta { margin-bottom: 10px; font-size: .82rem; color: var(--ash); }
+
+/* Universal bookmark FAB — shown by any reader screen via showBookmarkFab() */
+.addBookmarkFab {
+  position: fixed;
+  right: 18px;
+  bottom: 24px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  background: var(--gold, #c8972b);
+  color: #1a1200;
+  font-size: 1.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(0,0,0,.35);
+  z-index: 50;
+  cursor: pointer;
+}
+.addBookmarkFab:active { transform: scale(.94); }
+
+.bookmarkList .mantraItem { padding-right: 40px; }
