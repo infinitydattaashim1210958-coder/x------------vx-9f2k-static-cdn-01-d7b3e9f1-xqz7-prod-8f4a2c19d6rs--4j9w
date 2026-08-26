@@ -59,21 +59,12 @@ jobs:
       # and is downloaded at runtime by ramayana.js → downloadRamayana().
       # Nothing to do here at build time.
 
-      # ── Mahabharata database (NOT bundled — coming soon) ────────────
-      # mahabharata.js has been removed. This step is skipped until
-      # Mahabharata support is re-added. continue-on-error keeps the
-      # build green so the APK is still produced.
-      - name: Download Mahabharata database from latest Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
-        run: |
-          gh release download v1 \
-            --repo "infinitydattaashim1210958-coder/-------------vx-9f2k-static-cdn-01-d7b3e9f1-xqz7-prod-8f4a2c19d6rs--4j9w" \
-            --pattern "mahabharata.db.gz" --clobber --dir .
-          gunzip -f mahabharata.db.gz
-          mv mahabharata.db www/assets/databases/mahabharata.db
-          echo "mahabharata.db size: $(du -sh www/assets/databases/mahabharata.db)"
+      # ── Mahabharata database ─────────────────────────────────────────
+      # NOT bundled at build time. mahabharata.js downloads each পর্ব
+      # pack (mahabharata_parba_N.db.gz) on demand at runtime via
+      # mbDownloadPack(), so there is no single "mahabharata.db.gz"
+      # release asset to fetch here. (Previous step removed — it always
+      # failed with "no assets match the file pattern".)
 
       - name: List databases
         run: ls -lh www/assets/databases/
