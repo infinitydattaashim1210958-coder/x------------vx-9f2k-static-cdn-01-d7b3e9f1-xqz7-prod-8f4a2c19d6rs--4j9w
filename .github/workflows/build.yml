@@ -119,4 +119,4 @@ jobs:
         with:
           name: Swadhyay
           path: android/app/build/outputs/apk/debug/swadhyay.apk
-          retention-days: 3
+          retention-days: 1
