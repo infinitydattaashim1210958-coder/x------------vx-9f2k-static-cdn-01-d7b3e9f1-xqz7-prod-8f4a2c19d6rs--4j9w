@@ -1,288 +1,127 @@
 /**
- * ramayana.js — SQLite access layer for Valmiki Ramayana
+ * ramayana.js — Ramayana SQLite access layer (v2)
  *
- * Database: ramayana.db
- *   Downloaded once on first use from the DB repo's /ramayana-kanpur-iit/ folder.
- *   Stored in CapacitorSQLite's managed databases/ directory so standard
- *   createConnection() can open it without any custom path parameter.
+ * Architecture (mirrors VedaDB exactly):
  *
- * Schema:
- *   kandas  — raw JSON: { id, name, english_name, sarga_count }
- *   sargas  — raw JSON: { id, name, chapter, kanda: { id } }
- *   shlokas — raw JSON: { id, sanskrit, pratipada, tat, comment,
- *                         sarga: { id }, kanda: { id } }
+ *   ramayana_core.db   — always bundled in APK
+ *                         tables: kandas, sargas, shlokas (sanskrit only)
+ *                         *** deletable + re-downloadable by user ***
  *
- * Navigation: Kanda → Sarga → Shloka
- * Ref format: "K<kandaId>.S<sargaId>.<shlokaId>"  e.g. "K1.S1.42"
+ *   ramayana_kanda_N.db — bhashya packs (downloaded on demand)
+ *                         table: ramayana_bhashyas (shloka_id, field_key, value)
+ *                         field_key: "pratipada" | "tat" | "comment"
+ *
+ * DB repo (public asset repo):
+ *   ramayana-kanpur-iit/ramayana_core.db.gz
+ *   ramayana-kanpur-iit/ramayana_kanda_1.db.gz  … ramayana_kanda_6.db.gz
+ *
+ * Pack ID range: 501–506  (safe: Veda 1–200, Ramayana scholars 201–300, MB 301+)
+ * Pack file naming: ramayana_kanda_N.db.gz  (not scholar_N.db.gz)
+ *
+ * Hierarchy:
+ *   রামায়ণ → কান্ড → সর্গ → শ্লোক → [ভাষ্য tabs]
  */
 
-const RAMAYANA_DB_NAME = "ramayana";
+const RAM_CORE_DB  = "ramayana_core";
+const RAM_PACK_DIR = "ramayana_packs";
+const RAM_ASSET_BASE =
+  "https://raw.githubusercontent.com/infinitydattaashim1210958-coder/-------------vx-9f2k-static-cdn-01-d7b3e9f1-xqz7-prod-8f4a2c19d6rs--4j9w/main/ramayana-kanpur-iit/";
 
-/**
- * CapacitorSQLite names DB files as: {dbName}SQLite.db
- * We write the downloaded DB there so createConnection finds it.
- */
-const RAMAYANA_SQLITE_FILENAME = `${RAMAYANA_DB_NAME}SQLite.db`;
+const KANDA_NAMES = {
+  1: "বালকাণ্ড",
+  2: "অযোধ্যাকাণ্ড",
+  3: "অরণ্যকাণ্ড",
+  4: "কিষ্কিন্ধাকাণ্ড",
+  5: "সুন্দরকাণ্ড",
+  6: "যুদ্ধকাণ্ড",
+};
 
-/**
- * Sentinel file: exists in files/ after a successful download.
- * Used by isRamayanaDownloaded() to answer quickly without touching SQLite.
- */
-const RAMAYANA_SENTINEL_DIR  = "ramayana";
-const RAMAYANA_SENTINEL_PATH = "ramayana/ramayana.db.sentinel";
+// Scholar-style metadata for the 6 bhashya packs
+const RAM_KANDA_PACKS = [
+  { id: 501, kanda_id: 1, name: "বালকাণ্ড ভাষ্য",         pack_file: "ramayana_kanda_1.db.gz", pack_size_bytes: 1258291 },
+  { id: 502, kanda_id: 2, name: "অযোধ্যাকাণ্ড ভাষ্য",     pack_file: "ramayana_kanda_2.db.gz", pack_size_bytes: 1572864 },
+  { id: 503, kanda_id: 3, name: "অরণ্যকাণ্ড ভাষ্য",       pack_file: "ramayana_kanda_3.db.gz", pack_size_bytes: 1468006 },
+  { id: 504, kanda_id: 4, name: "কিষ্কিন্ধাকাণ্ড ভাষ্য",  pack_file: "ramayana_kanda_4.db.gz", pack_size_bytes: 1363149 },
+  { id: 505, kanda_id: 5, name: "সুন্দরকাণ্ড ভাষ্য",      pack_file: "ramayana_kanda_5.db.gz", pack_size_bytes:  972800 },
+  { id: 506, kanda_id: 6, name: "যুদ্ধকাণ্ড ভাষ্য",       pack_file: "ramayana_kanda_6.db.gz", pack_size_bytes: 1887437 },
+];
 
-/**
- * Release URL — DB repo, /ramayana-kanpur-iit/ folder (same raw.githubusercontent
- * pattern as PACK_RELEASE_BASE in db.js).
- */
-const RAMAYANA_RELEASE_URL =
-  "https://raw.githubusercontent.com/infinitydattaashim1210958-coder/" +
-  "-------------vx-9f2k-static-cdn-01-d7b3e9f1-xqz7-prod-8f4a2c19d6rs--4j9w" +
-  "/main/ramayana-kanpur-iit/ramayana.db.gz";
+/* ── Capacitor helpers (same pattern as db.js) ─────────────────────── */
 
-/* ── Capacitor helpers ───────────────────────────────────────────── */
-
-function rSqlite() {
-  if (!window.Capacitor?.Plugins?.CapacitorSQLite) return null;
-  return window.Capacitor.Plugins.CapacitorSQLite;
+function ramSqlite() {
+  return window.Capacitor?.Plugins?.CapacitorSQLite || null;
 }
 
-function rFs() {
+function ramFs() {
   const fs =
     window.Capacitor?.Plugins?.Filesystem ||
     window.Capacitor?.Filesystem ||
     window.Filesystem;
-  if (!fs || typeof fs.writeFile !== "function") return null;
-  return fs;
+  return (fs && typeof fs.writeFile === "function") ? fs : null;
 }
 
-function rDir() {
-  const fs = rFs();
+function ramDir() {
+  const fs = ramFs();
   if (!fs) return "DATA";
   return fs.Directory?.Data || fs.Directory?.DATA || "DATA";
 }
 
-async function rQuery(sql, params = []) {
-  const sqlite = rSqlite();
-  if (!sqlite) throw new Error("CapacitorSQLite not available");
-  const result = await sqlite.query({
-    database: RAMAYANA_DB_NAME,
-    statement: sql,
-    values: params,
-  });
+function ramRowsOf(result) {
   return (result && result.values) ? result.values : [];
 }
 
-/* ── Decompress / base64 helpers ─────────────────────────────────── */
-
-async function rDecompressGzip(arrayBuffer) {
-  const ds = new DecompressionStream("gzip");
-  const stream = new Blob([arrayBuffer]).stream().pipeThrough(ds);
-  return await new Response(stream).blob();
+async function ramQuery(sql, params = []) {
+  const sqlite = ramSqlite();
+  if (!sqlite) throw new Error("CapacitorSQLite not available");
+  const result = await sqlite.query({ database: RAM_CORE_DB, statement: sql, values: params });
+  return ramRowsOf(result);
 }
 
-function rBlobToBase64(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result.split(",")[1]);
-    reader.onerror  = reject;
-    reader.readAsDataURL(blob);
-  });
-}
+/* ── LRU pack manager (max 9 attached, same as db.js) ──────────────── */
 
-/**
- * Write a large Blob to an absolute native path in small chunks, using
- * writeFile for the first chunk and appendFile for the rest.
- *
- * WHY: Capacitor's JS<->native bridge has a payload-size ceiling (Android's
- * Binder transaction buffer is ~1MB). Converting a large DB (tens of MB) to
- * one giant base64 string and sending it in a single writeFile() call can
- * get truncated/corrupted in transit, which surfaces on the native side as
- * "The supplied data is not valid base64 content." Chunking keeps each
- * bridge call small and reliable.
- */
-async function rWriteBlobChunked(fs, absPath, blob, onProgress) {
-  const CHUNK_BYTES = 2 * 1024 * 1024; // 2MB raw per chunk (safely under bridge limits)
-  const total = blob.size;
-  let offset = 0;
-  let first = true;
+const MAX_RAM_ATTACHED = 9;
+const ramAttachedPacks  = new Set();
+const ramAttachedOrder  = [];
 
-  while (offset < total) {
-    const slice = blob.slice(offset, offset + CHUNK_BYTES);
-    const base64Chunk = await rBlobToBase64(slice);
-
-    if (first) {
-      await fs.writeFile({ path: absPath, data: base64Chunk, recursive: true });
-      first = false;
-    } else {
-      await fs.appendFile({ path: absPath, data: base64Chunk });
-    }
-
-    offset += CHUNK_BYTES;
-    if (onProgress) {
-      const pct = Math.min(100, Math.round((offset / total) * 100));
-      onProgress(`ইনস্টল হচ্ছে… ${pct}%`);
-    }
-  }
-}
-
-/* ── Download & storage ──────────────────────────────────────────── */
-
-/**
- * Returns true if ramayana.db was successfully downloaded in a prior session.
- * Uses a lightweight sentinel file stat — does NOT open any DB connection.
- */
-async function isRamayanaDownloaded() {
+async function ramEvictOldestIfNeeded(sqlite) {
+  if (ramAttachedPacks.size < MAX_RAM_ATTACHED) return;
+  const oldest = ramAttachedOrder.shift();
+  if (oldest == null) return;
+  ramAttachedPacks.delete(oldest);
   try {
-    const fs = rFs();
-    if (!fs) return false;
-    await fs.stat({ path: RAMAYANA_SENTINEL_PATH, directory: rDir() });
-    return true;
-  } catch (e) {
-    return false;
-  }
+    await sqlite.execute({
+      database:   RAM_CORE_DB,
+      statements: `DETACH DATABASE ram_pack_${oldest};`,
+    });
+  } catch (e) { /* already gone */ }
 }
 
-/**
- * Download, decompress, and install ramayana.db into CapacitorSQLite's
- * managed databases/ directory.
- *
- * KEY INSIGHT: CapacitorSQLite on Android stores databases at:
- *   /data/user/0/{package}/databases/{dbName}SQLite.db
- * Standard createConnection() looks there — no custom "path:" param needed.
- *
- * We derive the absolute databases/ path at runtime from any files/ URI
- * (path.replace('/files/', '/databases/')), then write directly there.
- * This avoids hardcoding the package name or user ID.
- *
- * @param {function(string):void} [onProgress]
- */
-async function downloadRamayana(onProgress) {
-  const fs  = rFs();
-  const dir = rDir();
-  if (!fs) throw new Error("Filesystem plugin unavailable");
-
-  // ── 1. Download ──────────────────────────────────────────────────
-  if (onProgress) onProgress("রামায়ণ ডাউনলোড হচ্ছে…");
-
-  let response;
-  try {
-    response = await fetch(RAMAYANA_RELEASE_URL);
-  } catch (err) {
-    throw new Error("নেটওয়ার্ক সমস্যা: " + err.message);
-  }
-  if (!response.ok) throw new Error("Download failed HTTP " + response.status);
-
-  const buffer = await response.arrayBuffer();
-
-  // ── 2. Decompress ────────────────────────────────────────────────
-  if (onProgress) onProgress("আনপ্যাক হচ্ছে…");
-  const dbBlob = await rDecompressGzip(buffer);
-  console.log("[ramayana] decompressed size:", dbBlob.size, "bytes");
-
-  // ── 3. Discover CapacitorSQLite databases/ path ──────────────────
-  if (onProgress) onProgress("ইনস্টল হচ্ছে…");
-
-  // Write a tiny probe file to our accessible files/ directory just to
-  // learn the absolute base path of the app's private storage.
-  // e.g. URI → "file:///data/user/0/com.kyronix.swadhyay/files/__probe"
-  const PROBE = "__ramayana_probe";
-  await fs.writeFile({ path: PROBE, data: "1", directory: dir, encoding: "utf8" });
-  const probeUri = await fs.getUri({ path: PROBE, directory: dir });
-  try { await fs.deleteFile({ path: PROBE, directory: dir }); } catch (e) {}
-
-  // probeAbsPath = "/data/user/0/com.kyronix.swadhyay/files/__ramayana_probe"
-  const probeAbsPath = probeUri.uri.replace(/^file:\/\//, "");
-
-  // filesIdx points to "/files/" in the path
-  const filesIdx = probeAbsPath.lastIndexOf("/files/");
-  if (filesIdx === -1) {
-    throw new Error(
-      "Unexpected Filesystem URI format — cannot derive SQLite databases path: " +
-      probeUri.uri
-    );
-  }
-
-  // appRoot = "/data/user/0/com.kyronix.swadhyay"
-  const appRoot = probeAbsPath.substring(0, filesIdx);
-
-  // CapacitorSQLite databases dir and file:
-  // /data/user/0/com.kyronix.swadhyay/databases/ramayanaSQLite.db
-  const sqliteDbPath = `${appRoot}/databases/${RAMAYANA_SQLITE_FILENAME}`;
-
-  // ── 4. Write DB to CapacitorSQLite's databases/ directory ────────
-  // Capacitor Filesystem supports absolute paths when no directory is given.
-  // The app has full RW permission over its own /databases/ folder.
-  // Written in small chunks (see rWriteBlobChunked) to avoid exceeding the
-  // Capacitor JS<->native bridge payload limit, which was corrupting the
-  // base64 payload for this large database and causing:
-  // "The supplied data is not valid base64 content."
-  await rWriteBlobChunked(fs, sqliteDbPath, dbBlob, onProgress);
-
-  // ── 5. Write sentinel so isRamayanaDownloaded() returns true ─────
-  try {
-    await fs.mkdir({ path: RAMAYANA_SENTINEL_DIR, directory: dir, recursive: true });
-  } catch (e) { /* already exists */ }
-  await fs.writeFile({
-    path:      RAMAYANA_SENTINEL_PATH,
-    data:      "ok",
-    directory: dir,
-    recursive: true,
-    encoding:  "utf8",
-  });
+function ramMarkPackUsed(packId) {
+  const idx = ramAttachedOrder.indexOf(packId);
+  if (idx !== -1) ramAttachedOrder.splice(idx, 1);
+  ramAttachedOrder.push(packId);
 }
 
-/* ── Init ─────────────────────────────────────────────────────────── */
+/* ── Init core DB ───────────────────────────────────────────────────── */
 
-let _rInitDone = false;
+let _ramInitDone = false;
 
-/**
- * Open the ramayana DB connection.
- *
- * Throws { needsDownload: true } if the DB has not been downloaded yet.
- * This sentinel is caught in the app.js boot sequence and by the
- * ramayanaDownloadGate() helper — it means "show download UI", not "crash".
- */
-async function rInitDB() {
-  if (_rInitDone) return;
+async function ramInitDB() {
+  if (_ramInitDone) return;
+  const sqlite = ramSqlite();
+  if (!sqlite) throw new Error("CapacitorSQLite not available");
 
-  const sqlite = rSqlite();
-  if (!sqlite) throw new Error("CapacitorSQLite plugin not available");
+  try { await sqlite.initWebStore(); } catch (e) { /* ok */ }
 
-  try { await sqlite.initWebStore(); } catch (e) { /* web-only, ok */ }
-
-  // isDatabase() returns true only if {dbName}SQLite.db exists in the
-  // managed databases/ directory — i.e. downloadRamayana() completed.
-  const exists = await sqlite.isDatabase({ database: RAMAYANA_DB_NAME });
-
+  const exists = await sqlite.isDatabase({ database: RAM_CORE_DB });
   if (!exists.result) {
-    // Quick sentinel check to distinguish "never downloaded" from a
-    // partially-written DB (the latter would need a fresh download too).
-    const downloaded = await isRamayanaDownloaded();
-    if (!downloaded) {
-      const err = new Error("RAMAYANA_NOT_DOWNLOADED");
-      err.needsDownload = true;
-      throw err;
-    }
-    // Sentinel says downloaded but isDatabase() says false →
-    // the write to databases/ failed. Force a re-download.
-    try {
-      await rFs()?.deleteFile({ path: RAMAYANA_SENTINEL_PATH, directory: rDir() });
-    } catch (e) {}
-    const err = new Error("রামায়ণ ডেটাবেস সঠিকভাবে ইনস্টল হয়নি। পুনরায় ডাউনলোড করুন।");
-    err.needsDownload = true;
-    throw err;
+    await sqlite.copyFromAssets({ overwrite: false });
   }
 
-  // Standard connection open — NO custom "path:" parameter.
-  // CapacitorSQLite already knows where ramayanaSQLite.db is.
   try {
     await sqlite.createConnection({
-      database: RAMAYANA_DB_NAME,
-      encrypted: false,
-      mode:      "no-encryption",
-      version:   1,
-      readonly:  false,
+      database: RAM_CORE_DB, encrypted: false,
+      mode: "no-encryption", version: 1, readonly: false,
     });
   } catch (e) {
     const msg = (e?.message || String(e)).toLowerCase();
@@ -290,173 +129,349 @@ async function rInitDB() {
   }
 
   try {
-    await sqlite.open({ database: RAMAYANA_DB_NAME });
+    await sqlite.open({ database: RAM_CORE_DB });
   } catch (e) {
     const msg = (e?.message || String(e)).toLowerCase();
     if (msg.includes("already") || msg.includes("exist")) {
-      // benign — already open
+      // benign
     } else if (msg.includes("no available connection")) {
-      // createConnection silently failed; self-heal
       await sqlite.createConnection({
-        database: RAMAYANA_DB_NAME,
-        encrypted: false,
-        mode:      "no-encryption",
-        version:   1,
-        readonly:  false,
+        database: RAM_CORE_DB, encrypted: false,
+        mode: "no-encryption", version: 1, readonly: false,
       });
-      await sqlite.open({ database: RAMAYANA_DB_NAME });
+      await sqlite.open({ database: RAM_CORE_DB });
     } else {
       throw e;
     }
   }
 
-  _rInitDone = true;
+  _ramInitDone = true;
 }
 
-/** Reset init flag after a fresh download so the next init re-opens the DB. */
-function rResetInit() {
-  _rInitDone = false;
+/* ── Core text queries ──────────────────────────────────────────────── */
+
+async function ramGetKandas() {
+  return ramQuery("SELECT * FROM kandas ORDER BY id");
 }
 
-/* ── Kandas ──────────────────────────────────────────────────────── */
-
-async function getKandas() {
-  const rows = await rQuery(
-    "SELECT json_extract(raw,'$.id') AS id, raw FROM kandas ORDER BY CAST(json_extract(raw,'$.id') AS INTEGER)"
-  );
-  return rows.map(r => JSON.parse(r.raw));
+async function ramGetKandaById(kandaId) {
+  const rows = await ramQuery("SELECT * FROM kandas WHERE id=?", [kandaId]);
+  return rows[0] || null;
 }
 
-async function getKandaById(kandaId) {
-  const rows = await rQuery(
-    "SELECT raw FROM kandas WHERE json_extract(raw,'$.id') = ?",
+async function ramGetSargasForKanda(kandaId) {
+  return ramQuery(
+    "SELECT * FROM sargas WHERE kanda_id=? ORDER BY chapter",
     [kandaId]
   );
-  return rows.length ? JSON.parse(rows[0].raw) : null;
 }
 
-/* ── Sargas ──────────────────────────────────────────────────────── */
-
-async function getSargasForKanda(kandaId) {
-  const rows = await rQuery(
-    `SELECT raw FROM sargas
-     WHERE json_extract(raw,'$.kanda.id') = ?
-     ORDER BY CAST(json_extract(raw,'$.id') AS INTEGER)`,
-    [kandaId]
-  );
-  return rows.map(r => JSON.parse(r.raw));
+async function ramGetSargaById(sargaId) {
+  const rows = await ramQuery("SELECT * FROM sargas WHERE id=?", [sargaId]);
+  return rows[0] || null;
 }
 
-async function getSargaById(sargaId) {
-  const rows = await rQuery(
-    "SELECT raw FROM sargas WHERE json_extract(raw,'$.id') = ?",
+async function ramGetShlokasForSarga(sargaId) {
+  return ramQuery(
+    "SELECT * FROM shlokas WHERE sarga_id=? ORDER BY id",
     [sargaId]
   );
-  return rows.length ? JSON.parse(rows[0].raw) : null;
 }
 
-/* ── Shlokas ─────────────────────────────────────────────────────── */
-
-async function getShlokasForSarga(sargaId) {
-  const rows = await rQuery(
-    `SELECT raw FROM shlokas
-     WHERE json_extract(raw,'$.sarga.id') = ?
-     ORDER BY ROWID`,
-    [sargaId]
-  );
-  return rows.map(r => JSON.parse(r.raw));
+async function ramGetShlokaById(shlokaId) {
+  const rows = await ramQuery("SELECT * FROM shlokas WHERE id=?", [shlokaId]);
+  return rows[0] || null;
 }
 
-async function getShlokaByRef(ref) {
-  const m = ref.match(/^K(\d+)\.S(\d+)\.(\d+)$/);
-  if (!m) return null;
-  const [, kandaId, sargaId, shlokaId] = m.map(Number);
-  const rows = await rQuery(
-    `SELECT ROWID AS rowid_val, raw FROM shlokas
-     WHERE json_extract(raw,'$.kanda.id') = ?
-       AND json_extract(raw,'$.sarga.id') = ?
-       AND json_extract(raw,'$.id') = ?
-     LIMIT 1`,
-    [kandaId, sargaId, shlokaId]
+async function ramGetAdjacentShlokas(shlokaId, sargaId) {
+  const prev = await ramQuery(
+    "SELECT id FROM shlokas WHERE sarga_id=? AND id<? ORDER BY id DESC LIMIT 1",
+    [sargaId, shlokaId]
   );
-  if (!rows.length) return null;
-  const d = JSON.parse(rows[0].raw);
-  d._rowid = rows[0].rowid_val ?? rows[0].ROWID_VAL ?? rows[0].ROWID ?? rows[0].rowid;
-  return d;
-}
-
-async function getAdjacentShlokas(rowid, sargaId) {
-  const prevRows = await rQuery(
-    `SELECT ROWID AS rowid_val, raw FROM shlokas
-     WHERE json_extract(raw,'$.sarga.id') = ? AND ROWID < ?
-     ORDER BY ROWID DESC LIMIT 1`,
-    [sargaId, rowid]
+  const next = await ramQuery(
+    "SELECT id FROM shlokas WHERE sarga_id=? AND id>? ORDER BY id ASC LIMIT 1",
+    [sargaId, shlokaId]
   );
-  const nextRows = await rQuery(
-    `SELECT ROWID AS rowid_val, raw FROM shlokas
-     WHERE json_extract(raw,'$.sarga.id') = ? AND ROWID > ?
-     ORDER BY ROWID ASC LIMIT 1`,
-    [sargaId, rowid]
-  );
-  function toRef(row) {
-    if (!row) return null;
-    const d = JSON.parse(row.raw);
-    return `K${d.kanda.id}.S${d.sarga.id}.${d.id}`;
-  }
   return {
-    prev: prevRows.length ? toRef(prevRows[0]) : null,
-    next: nextRows.length ? toRef(nextRows[0]) : null,
+    prev: prev.length ? prev[0].id : null,
+    next: next.length ? next[0].id : null,
   };
 }
 
-async function getShlokaCount(sargaId) {
-  const rows = await rQuery(
-    "SELECT COUNT(*) AS c FROM shlokas WHERE json_extract(raw,'$.sarga.id') = ?",
-    [sargaId]
-  );
-  return rows[0]?.c || 0;
+/* ── Core DB: download / delete (sanskrit text) ─────────────────────── */
+
+async function ramIsCoreDownloaded() {
+  try {
+    const sqlite = ramSqlite();
+    if (!sqlite) return false;
+    const exists = await sqlite.isDatabase({ database: RAM_CORE_DB });
+    return exists.result;
+  } catch (e) {
+    return false;
+  }
 }
 
-/* ── Search ──────────────────────────────────────────────────────── */
+async function ramDeleteCore() {
+  // Close connection, delete DB file — user must re-download to read shlokas
+  const sqlite = ramSqlite();
+  if (!sqlite) return;
+  try { await sqlite.close({ database: RAM_CORE_DB }); } catch (e) { /* ok */ }
+  try { await sqlite.deleteDatabase({ database: RAM_CORE_DB }); } catch (e) { /* ok */ }
+  _ramInitDone = false;
+}
 
-async function searchRamayana(term, limit = 50) {
-  const escaped = "%" + term.trim().replace(/[%_]/g, "\\$&") + "%";
-  const rows = await rQuery(
-    `SELECT raw FROM shlokas
-     WHERE json_extract(raw,'$.sanskrit') LIKE ?
-        OR json_extract(raw,'$.tat') LIKE ?
-        OR json_extract(raw,'$.pratipada') LIKE ?
-     LIMIT ?`,
-    [escaped, escaped, escaped, limit]
-  );
-  return rows.map(r => {
-    const d = JSON.parse(r.raw);
-    return {
-      ref:      `K${d.kanda.id}.S${d.sarga.id}.${d.id}`,
-      kandaId:  d.kanda.id,
-      sargaId:  d.sarga.id,
-      shlokaId: d.id,
-      sanskrit: d.sanskrit,
-      tat:      d.tat,
-    };
+async function ramDownloadCore(onProgress) {
+  if (onProgress) onProgress("ডাউনলোড হচ্ছে…");
+  const url = RAM_ASSET_BASE + "ramayana_core.db.gz";
+  let response;
+  try {
+    response = await fetch(url);
+  } catch (err) {
+    throw new Error("নেটওয়ার্ক সমস্যা: " + err.message);
+  }
+  if (!response.ok) throw new Error("Download failed HTTP " + response.status);
+
+  const buffer = await response.arrayBuffer();
+  if (onProgress) onProgress("আনপ্যাক হচ্ছে…");
+
+  const ds     = new DecompressionStream("gzip");
+  const stream = new Blob([buffer]).stream().pipeThrough(ds);
+  const dbBlob = await new Response(stream).blob();
+  const base64 = await new Promise((res, rej) => {
+    const reader = new FileReader();
+    reader.onloadend = () => res(reader.result.split(",")[1]);
+    reader.onerror   = rej;
+    reader.readAsDataURL(dbBlob);
   });
+
+  if (onProgress) onProgress("সংরক্ষণ হচ্ছে…");
+
+  // Use CapacitorSQLite importFromJson or writeFile — write as DB via fs
+  const sqlite = ramSqlite();
+  const fs     = ramFs();
+  const dir    = ramDir();
+  if (!fs || !dir) throw new Error("Filesystem plugin not available");
+
+  await fs.writeFile({
+    path:      "CapacitorSQLite/" + RAM_CORE_DB + "SQLite.db",
+    data:      base64,
+    directory: dir,
+    recursive: true,
+  });
+
+  // Re-init
+  _ramInitDone = false;
+  await ramInitDB();
+  if (onProgress) onProgress("সম্পন্ন!");
 }
 
-/* ── Public API ─────────────────────────────────────────────────── */
+/* ── Pack helpers (bhashya — one per kanda) ─────────────────────────── */
+
+function ramPackAlias(packId) { return `ram_pack_${packId}`; }
+
+function ramPackFileName(packId) {
+  return `${RAM_PACK_DIR}/ramayana_kanda_${packId - 500}.db`;
+}
+
+async function ramIsPackDownloaded(packId) {
+  try {
+    const fs  = ramFs();
+    const dir = ramDir();
+    if (!fs || !dir) return false;
+    await fs.stat({ path: ramPackFileName(packId), directory: dir });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function ramDownloadPack(packId, packFile, onProgress) {
+  if (onProgress) onProgress("ডাউনলোড হচ্ছে…");
+  const url = RAM_ASSET_BASE + packFile;
+  let response;
+  try { response = await fetch(url); }
+  catch (err) { throw new Error("নেটওয়ার্ক সমস্যা: " + err.message); }
+  if (!response.ok) throw new Error("Download failed HTTP " + response.status);
+
+  const buffer = await response.arrayBuffer();
+  if (onProgress) onProgress("আনপ্যাক হচ্ছে…");
+
+  const ds     = new DecompressionStream("gzip");
+  const stream = new Blob([buffer]).stream().pipeThrough(ds);
+  const dbBlob = await new Response(stream).blob();
+  const base64 = await new Promise((res, rej) => {
+    const reader = new FileReader();
+    reader.onloadend = () => res(reader.result.split(",")[1]);
+    reader.onerror   = rej;
+    reader.readAsDataURL(dbBlob);
+  });
+
+  if (onProgress) onProgress("সংরক্ষণ হচ্ছে…");
+  const fs  = ramFs();
+  const dir = ramDir();
+  if (!fs || !dir) throw new Error("Filesystem plugin not available");
+  await fs.writeFile({
+    path:      ramPackFileName(packId),
+    data:      base64,
+    directory: dir,
+    recursive: true,
+  });
+  return true;
+}
+
+async function ramAttachPack(packId) {
+  if (ramAttachedPacks.has(packId)) { ramMarkPackUsed(packId); return; }
+
+  const sqlite = ramSqlite();
+  const fs     = ramFs();
+  const dir    = ramDir();
+  if (!sqlite || !fs || !dir) throw new Error("Plugins unavailable");
+
+  await ramEvictOldestIfNeeded(sqlite);
+
+  const uri    = await fs.getUri({ path: ramPackFileName(packId), directory: dir });
+  let dbPath   = uri.uri;
+  if (dbPath.startsWith("file://")) dbPath = dbPath.replace("file://", "");
+  const alias  = ramPackAlias(packId);
+
+  try {
+    await sqlite.execute({ database: RAM_CORE_DB, statements: `DETACH DATABASE ${alias};` });
+  } catch (e) { /* not attached */ }
+
+  try {
+    await sqlite.execute({ database: RAM_CORE_DB, statements: `ATTACH DATABASE '${dbPath}' AS ${alias};` });
+  } catch (e) {
+    const msg = (e?.message || String(e));
+    if (!msg.includes("already in use")) throw e;
+  }
+
+  ramAttachedPacks.add(packId);
+  ramMarkPackUsed(packId);
+}
+
+async function ramDetachPack(packId) {
+  const sqlite = ramSqlite();
+  if (!sqlite) return;
+  if (!ramAttachedPacks.has(packId)) return;
+  try {
+    await sqlite.execute({
+      database:   RAM_CORE_DB,
+      statements: `DETACH DATABASE ${ramPackAlias(packId)};`,
+    });
+  } catch (e) { /* ignore */ }
+  ramAttachedPacks.delete(packId);
+  const idx = ramAttachedOrder.indexOf(packId);
+  if (idx !== -1) ramAttachedOrder.splice(idx, 1);
+}
+
+async function ramDeletePack(packId) {
+  await ramDetachPack(packId);
+  try {
+    const fs  = ramFs();
+    const dir = ramDir();
+    if (fs && dir) await fs.deleteFile({ path: ramPackFileName(packId), directory: dir });
+  } catch (e) { /* already gone */ }
+}
+
+/* ── Bhashya query (from pack) ─────────────────────────────────────── */
+
+async function ramGetBhashyaForShloka(packId, shlokaId) {
+  await ramAttachPack(packId);
+  const alias   = ramPackAlias(packId);
+  const sqlite  = ramSqlite();
+  const result  = await sqlite.query({
+    database:  RAM_CORE_DB,
+    statement: `SELECT field_key, value FROM ${alias}.ramayana_bhashyas WHERE shloka_id=? ORDER BY id`,
+    values:    [shlokaId],
+  });
+  return ramRowsOf(result);  // [{field_key, value}, ...]
+}
+
+/* ── Search ─────────────────────────────────────────────────────────── */
+
+async function ramSearchSanskrit(term, limit = 50) {
+  const escaped = '"' + term.trim().replace(/"/g, '""') + '"';
+  try {
+    return ramQuery(
+      `SELECT s.id, s.kanda_id, s.sarga_id, s.sanskrit
+       FROM shlokas_fts f
+       JOIN shlokas s ON s.id = f.rowid
+       WHERE shlokas_fts MATCH ?
+       LIMIT ?`,
+      [escaped, limit]
+    );
+  } catch (e) {
+    const esc = "%" + term.trim().replace(/[%_]/g, "\\$&") + "%";
+    return ramQuery(
+      `SELECT id, kanda_id, sarga_id, sanskrit FROM shlokas
+       WHERE sanskrit LIKE ? LIMIT ?`,
+      [esc, limit]
+    );
+  }
+}
+
+async function ramSearchBhashya(packId, term, limit = 50) {
+  await ramAttachPack(packId);
+  const alias   = ramPackAlias(packId);
+  const sqlite  = ramSqlite();
+  const escaped = '"' + term.trim().replace(/"/g, '""') + '"';
+  try {
+    const result = await sqlite.query({
+      database:  RAM_CORE_DB,
+      statement: `SELECT b.shloka_id, b.field_key, b.value,
+                         s.kanda_id, s.sarga_id
+                  FROM ${alias}.rb_fts f
+                  JOIN ${alias}.ramayana_bhashyas b ON b.id = f.rowid
+                  JOIN shlokas s ON s.id = b.shloka_id
+                  WHERE ${alias}.rb_fts MATCH ?
+                  LIMIT ?`,
+      values: [escaped, limit],
+    });
+    return ramRowsOf(result);
+  } catch (e) {
+    const esc = "%" + term.trim().replace(/[%_]/g, "\\$&") + "%";
+    const result = await sqlite.query({
+      database:  RAM_CORE_DB,
+      statement: `SELECT b.shloka_id, b.field_key, b.value,
+                         s.kanda_id, s.sarga_id
+                  FROM ${alias}.ramayana_bhashyas b
+                  JOIN shlokas s ON s.id = b.shloka_id
+                  WHERE b.value LIKE ?
+                  LIMIT ?`,
+      values: [esc, limit],
+    });
+    return ramRowsOf(result);
+  }
+}
+
+/* ── Public API ─────────────────────────────────────────────────────── */
 
 window.RamayanaDB = {
-  get _initDone() { return _rInitDone; },
-  initDB:              rInitDB,
-  resetInit:           rResetInit,
-  isRamayanaDownloaded,
-  downloadRamayana,
-  getKandas,
-  getKandaById,
-  getSargasForKanda,
-  getSargaById,
-  getShlokasForSarga,
-  getShlokaByRef,
-  getAdjacentShlokas,
-  getShlokaCount,
-  searchRamayana,
+  initDB: ramInitDB,
+
+  // Core text
+  getKandas:           ramGetKandas,
+  getKandaById:        ramGetKandaById,
+  getSargasForKanda:   ramGetSargasForKanda,
+  getSargaById:        ramGetSargaById,
+  getShlokasForSarga:  ramGetShlokasForSarga,
+  getShlokaById:       ramGetShlokaById,
+  getAdjacentShlokas:  ramGetAdjacentShlokas,
+
+  // Core text DB lifecycle
+  isCoreDownloaded:    ramIsCoreDownloaded,
+  downloadCore:        ramDownloadCore,
+  deleteCore:          ramDeleteCore,
+
+  // Bhashya packs
+  KANDA_PACKS:         RAM_KANDA_PACKS,
+  KANDA_NAMES:         KANDA_NAMES,
+  isPackDownloaded:    ramIsPackDownloaded,
+  downloadPack:        ramDownloadPack,
+  deletePack:          ramDeletePack,
+  getBhashyaForShloka: ramGetBhashyaForShloka,
+
+  // Search
+  searchSanskrit:      ramSearchSanskrit,
+  searchBhashya:       ramSearchBhashya,
 };
