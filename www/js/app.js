@@ -16,6 +16,8 @@ const backBtn = document.getElementById("backBtn");
 const titleEl = document.getElementById("appTitle");
 const searchBtn = document.getElementById("searchBtn");
 const settingsBtn = document.getElementById("settingsBtn");
+const bookmarkBtn = document.getElementById("bookmarkBtn");
+const addBookmarkFab = document.getElementById("addBookmarkFab");
 
 const VEDA_THEME = {
   rigveda:     { a: "#d4a24c", b: "#e8915c", tag: "Veda I · Knowledge" },
@@ -54,6 +56,92 @@ function el(html) {
   const t = document.createElement("template");
   t.innerHTML = html.trim();
   return t.content.firstChild;
+}
+
+/* ══════════════════════════════════════════════════════
+   BOOKMARKS — universal add/open, works for any reader
+   (db.js mantras, ramayana shlokas, mahabharata adhyays,
+   html_book library) because it stores the app's own hash
+   plus generic title/subtitle/preview/scroll% — no
+   reader-specific structure required.
+══════════════════════════════════════════════════════ */
+
+// Set by a library-reader bookmark tap so screenLibraryReader knows to
+// restore scroll inside its <iframe> once the book finishes loading.
+window._bmPendingLibraryScroll = null;
+
+function showBookmarkFab(meta) {
+  if (!addBookmarkFab) return;
+  addBookmarkFab.style.display = "flex";
+  addBookmarkFab.onclick = async () => {
+    const scrollPercent = meta.getScrollPercent ? meta.getScrollPercent() : bmCurrentScrollPercent();
+    await window.BookmarkManager.add({
+      hash: location.hash,
+      title: meta.title || "",
+      subtitle: meta.subtitle || "",
+      preview: meta.preview || "",
+      scrollPercent,
+    });
+    addBookmarkFab.textContent = "✅";
+    setTimeout(() => { if (addBookmarkFab) addBookmarkFab.textContent = "🔖"; }, 900);
+  };
+}
+
+function hideBookmarkFab() {
+  if (!addBookmarkFab) return;
+  addBookmarkFab.style.display = "none";
+  addBookmarkFab.onclick = null;
+}
+
+function openBookmark(bm) {
+  if (bm.hash.startsWith("#/library/")) {
+    window._bmPendingLibraryScroll = bm.scrollPercent;
+  } else {
+    bmRestoreScrollPercent(bm.scrollPercent);
+  }
+  if (location.hash === bm.hash) router();
+  else location.hash = bm.hash;
+}
+
+async function screenBookmarks() {
+  showBack(true);
+  setTitle("বুকমার্ক");
+  hideBookmarkFab();
+
+  const items = await window.BookmarkManager.list();
+  if (!items.length) {
+    root.innerHTML = `<div class="empty">এখনো কোনো বুকমার্ক নেই।<br><small style="opacity:.6;">পড়ার সময় 🔖 বাটনে ট্যাপ করে বুকমার্ক যোগ করুন।</small></div>`;
+    return;
+  }
+
+  root.innerHTML = `
+    <div class="listHeader">${items.length}টা বুকমার্ক</div>
+    <div class="bookmarkList">
+      ${items.map(bm => `
+        <div class="mantraItem" data-bm-id="${bm.id}" style="position:relative;">
+          <div class="mref">${bm.title}${bm.subtitle ? " · " + bm.subtitle : ""}</div>
+          ${bm.preview ? `<div class="mtext">${bm.preview}</div>` : ""}
+          <button class="bmDeleteBtn" data-bm-del="${bm.id}" aria-label="মুছুন" style="position:absolute;top:10px;right:10px;background:none;border:none;color:var(--gold);opacity:.6;font-size:1rem;">✕</button>
+        </div>`).join("")}
+    </div>`;
+
+  const byId = {};
+  items.forEach(bm => (byId[bm.id] = bm));
+
+  root.querySelectorAll("[data-bm-id]").forEach(card => {
+    card.addEventListener("click", (ev) => {
+      if (ev.target.closest("[data-bm-del]")) return;
+      openBookmark(byId[card.dataset.bmId]);
+    });
+  });
+
+  root.querySelectorAll("[data-bm-del]").forEach(btn => {
+    btn.addEventListener("click", async (ev) => {
+      ev.stopPropagation();
+      await window.BookmarkManager.remove(btn.dataset.bmDel);
+      screenBookmarks();
+    });
+  });
 }
 
 async function ensureVedaCache() {
@@ -315,6 +403,12 @@ async function screenMantra(code, refEncodedWithQuery) {
       <a class="navBtn ${prev ? "" : "disabled"}" ${prev ? `href="${navUrl(prev)}"` : ""}>← আগের মন্ত্র</a>
       <a class="navBtn ${next ? "" : "disabled"}" ${next ? `href="${navUrl(next)}"` : ""}>পরের মন্ত্র →</a>
     </div>`;
+
+  showBookmarkFab({
+    title: veda.name,
+    subtitle: ref,
+    preview: (mantra.sanskrit_swara || mantra.sanskrit_text || "").replace(/\n/g, " ").slice(0, 140),
+  });
 
   function refreshNavLinks() {
     const p = root.querySelector(".mantraNav .navBtn:first-child");
@@ -689,6 +783,12 @@ async function screenRamayanaShloka(refEncoded) {
       <a class="navBtn ${next ? "" : "disabled"}" ${next ? `href="${navHref(next)}"` : ""}>পরের শ্লোক →</a>
     </div>`;
 
+  showBookmarkFab({
+    title: kanda?.name || "রামায়ণ",
+    subtitle: `Sarga ${shloka.sarga.id} · Shloka ${shloka.id}`,
+    preview: (shloka.tat || shloka.sanskrit || "").replace(/\n/g, " ").slice(0, 140),
+  });
+
   if (!scholars.length) return;
 
   const scholarsById = {};
@@ -928,6 +1028,12 @@ async function screenMahabharataAdhyay(parbaId, adhyayId) {
       <a class="navBtn ${prev ? "" : "disabled"}" ${prev ? `href="${navHref(prev)}"` : ""}>← আগের অধ্যায়</a>
       <a class="navBtn ${next ? "" : "disabled"}" ${next ? `href="${navHref(next)}"` : ""}>পরের অধ্যায় →</a>
     </div>`;
+
+  showBookmarkFab({
+    title: parba.name,
+    subtitle: `অধ্যায় ${adhyay.chapter_no}`,
+    preview: (adhyay.title || "").replace(/\n/g, " ").slice(0, 140),
+  });
 }
 
 /* ══════════════════════════════════════════════════════
@@ -1055,6 +1161,34 @@ async function screenLibraryReader(bookId) {
     const playableSrc = window.Capacitor.convertFileSrc(uri);
     setTitle(entry.title || "বই পড়ুন");
     root.innerHTML = `<iframe class="bookReaderFrame" src="${playableSrc}"></iframe>`;
+
+    const frame = root.querySelector(".bookReaderFrame");
+    const pendingPct = window._bmPendingLibraryScroll;
+    window._bmPendingLibraryScroll = null;
+
+    function iframeScrollPercent() {
+      try {
+        const cw = frame.contentWindow, cd = frame.contentDocument;
+        const max = cd.documentElement.scrollHeight - cw.innerHeight;
+        return max > 0 ? (cw.scrollY / max) * 100 : 0;
+      } catch (e) { return 0; }
+    }
+
+    frame.addEventListener("load", () => {
+      if (pendingPct == null) return;
+      try {
+        const cw = frame.contentWindow, cd = frame.contentDocument;
+        const max = cd.documentElement.scrollHeight - cw.innerHeight;
+        if (max > 0) cw.scrollTo(0, (pendingPct / 100) * max);
+      } catch (e) { /* cross-origin — can't restore, ignore */ }
+    });
+
+    showBookmarkFab({
+      title: entry.title || "বই",
+      subtitle: "ডিজিটাল লাইব্রেরি",
+      preview: "",
+      getScrollPercent: iframeScrollPercent,
+    });
   } catch (e) {
     root.innerHTML = `<div class="empty">বই খুলতে সমস্যা।<br><small>${e.message || e}</small></div>`;
   }
@@ -1903,6 +2037,7 @@ async function router() {
   document.querySelectorAll(".pdfRenderContainer").forEach(el => {
     try { el.parentNode && el.parentNode.removeChild(el); } catch (e) { /* ignore */ }
   });
+  hideBookmarkFab(); // reader screens re-show it themselves after render
 
   const hash = location.hash || "#/";
   const parts = hash.replace(/^#\//, "").split("/").filter(Boolean);
@@ -1911,6 +2046,7 @@ async function router() {
     if (!parts.length) return await screenHome();
 
     if (parts[0] === "search") return await screenSearch();
+    if (parts[0] === "bookmarks") return await screenBookmarks();
 
     // Library
     if (parts[0] === "library" && parts.length === 1) return await screenLibrary();
@@ -1966,6 +2102,7 @@ async function router() {
 window.addEventListener("hashchange", router);
 backBtn.addEventListener("click", () => history.length ? window.history.back() : (location.hash = "#/"));
 searchBtn.addEventListener("click", () => (location.hash = "#/search"));
+bookmarkBtn.addEventListener("click", () => (location.hash = "#/bookmarks"));
 settingsBtn.addEventListener("click", () => (location.hash = "#/settings"));
 
 async function boot() {
