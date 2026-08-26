@@ -33,6 +33,15 @@ const RAMAYANA_KANDA_COLORS = [
   { a: "#9879b8", b: "#7b4fc9" },
 ];
 
+const MAHABHARATA_PARBA_COLORS = [
+  { a: "#b3542c", b: "#d97a3f" },
+  { a: "#7ba0c2", b: "#5c85c7" },
+  { a: "#4f8c6b", b: "#79b87a" },
+  { a: "#c99a3e", b: "#e8b23d" },
+  { a: "#9879b8", b: "#7b4fc9" },
+  { a: "#c74f4f", b: "#b87979" },
+];
+
 let vedaCache = {};
 let kandaCache = {}; // ramayana: id -> kanda object
 
@@ -67,7 +76,7 @@ async function ensureKandaCache() {
 const HOME_SECTIONS = [
   { icon: "🕉", label: "বেদ",           route: "#/vedas" },
   { icon: "🏹", label: "রামায়ণ",        route: "#/ramayana" },
-  { icon: "⚔️", label: "মহাভারত",       soon: true },
+  { icon: "⚔️", label: "মহাভারত",       route: "#/mahabharata" },
   { icon: "📖", label: "পুরাণ",         soon: true },
   { icon: "🔥", label: "ব্রাহ্মণ",      soon: true },
   { icon: "🪔", label: "উপনিষদ",        soon: true },
@@ -755,6 +764,170 @@ async function screenRamayanaShloka(refEncoded) {
       loadPanel(panel);
     });
   });
+}
+
+/* ══════════════════════════════════════════════════════
+   MAHABHARATA (কালীপ্রসন্ন সিংহ অনূদিত)
+
+   Hierarchy: পর্ব লিস্ট → কালীপ্রসন্ন সিংহ অনূদিত [download gate]
+              → অধ্যায় তালিকা → অধ্যায় (সব উপাখ্যান, sectioned by বিষয়/টপিক)
+══════════════════════════════════════════════════════ */
+
+function mbSizeLabel(bytes) {
+  if (!bytes) return "";
+  const kb = bytes / 1024;
+  return kb < 1024 ? `${Math.round(kb)} KB` : `${(kb / 1024).toFixed(1)} MB`;
+}
+
+async function screenMahabharata() {
+  showBack(true);
+  setTitle("মহাভারত");
+
+  const parbaCards = window.MahabharataDB.PARBAS.map((p) => {
+    const colors = MAHABHARATA_PARBA_COLORS[(p.parba_no - 1) % MAHABHARATA_PARBA_COLORS.length];
+    return `
+      <a class="card" href="#/mahabharata/parba/${p.id}" style="--a:${colors.a};--b:${colors.b}">
+        <div class="tag">পর্ব ${p.parba_no}</div>
+        <h2>${p.name}</h2>
+        <div style="font-size:.85rem;opacity:.7;margin-top:4px;">${p.adhyay_count} অধ্যায় · ${p.upakhyan_count} উপাখ্যান</div>
+        <div class="arrow">→</div>
+      </a>`;
+  }).join("");
+
+  root.innerHTML = `
+    <div class="hero">
+      <div class="om">⚔️</div>
+      <div class="sub">মহাভারত — কালীপ্রসন্ন সিংহ অনূদিত · অষ্টাদশ পর্ব</div>
+    </div>
+    <div class="grid">${parbaCards}</div>`;
+}
+
+async function screenMahabharataParba(parbaId) {
+  showBack(true);
+  const parba = window.MahabharataDB.getParbaById(parbaId);
+  if (!parba) return screenMahabharata();
+  setTitle(parba.name);
+
+  const downloaded = await window.MahabharataDB.isPackDownloaded(parbaId);
+
+  if (!downloaded) {
+    root.innerHTML = `
+      <div class="hero">
+        <div class="om">⚔️</div>
+        <div class="sub">${parba.name} — পর্ব ${parba.parba_no}</div>
+      </div>
+      <div class="listHeader">অনুবাদক</div>
+      <div class="mantraList">
+        <div class="mantraItem" style="cursor:default;">
+          <div class="mref">📜</div>
+          <div class="mtext">
+            <div>${window.MahabharataDB.SCHOLAR_NAME}</div>
+            <div style="font-size:.8rem;opacity:.65;margin-top:2px;">
+              ${parba.adhyay_count} অধ্যায় · ${parba.upakhyan_count} উপাখ্যান · ${mbSizeLabel(parba.pack_size_bytes)}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:18px 20px;">
+        <button id="dlParbaBtn" style="
+          background:var(--gold,#c8972b);color:#1a1200;border:none;
+          padding:14px 32px;border-radius:12px;font-size:1rem;
+          font-weight:700;cursor:pointer;width:100%;">
+          ডাউনলোড করুন
+        </button>
+        <div id="dlParbaStatus" style="margin-top:14px;font-size:.9rem;min-height:22px;opacity:.8;text-align:center;"></div>
+      </div>`;
+
+    const btn = root.querySelector("#dlParbaBtn");
+    const statusEl = root.querySelector("#dlParbaStatus");
+
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      btn.textContent = "ডাউনলোড হচ্ছে…";
+      try {
+        await window.MahabharataDB.downloadPack(parbaId, msg => { if (statusEl) statusEl.textContent = msg; });
+        await screenMahabharataParba(parbaId);
+      } catch (e) {
+        btn.disabled = false;
+        btn.textContent = "আবার চেষ্টা করুন";
+        statusEl.textContent = "ব্যর্থ: " + (e.message || e);
+      }
+    });
+    return;
+  }
+
+  // Downloaded — show অধ্যায় তালিকা directly under the single অনুবাদক.
+  let adhyayas = [];
+  try {
+    adhyayas = await window.MahabharataDB.getAdhyayasForParba(parbaId);
+  } catch (e) {
+    root.innerHTML = `<div class="empty">অধ্যায় তালিকা লোড করতে সমস্যা।<br><small>${e.message || e}</small></div>`;
+    return;
+  }
+
+  root.innerHTML = `
+    <div class="hero">
+      <div class="om">⚔️</div>
+      <div class="sub">${parba.name} · ${window.MahabharataDB.SCHOLAR_NAME}</div>
+    </div>
+    <div class="listHeader">${adhyayas.length} অধ্যায়</div>
+    <div class="mantraList">
+      ${adhyayas.map(a => `
+        <a class="mantraItem" href="#/mahabharata/parba/${parbaId}/adhyay/${a.id}">
+          <div class="mref">${a.chapter_no}</div>
+          <div class="mtext">${a.title}</div>
+        </a>`).join("")}
+    </div>
+    <div style="padding:14px 20px 24px;">
+      <button id="delParbaBtn" class="miniBtn">এই পর্ব মুছুন</button>
+    </div>`;
+
+  root.querySelector("#delParbaBtn").addEventListener("click", async () => {
+    if (!confirm(`"${parba.name}" মুছে ফেলতে চান?`)) return;
+    await window.MahabharataDB.deletePack(parbaId);
+    await screenMahabharataParba(parbaId);
+  });
+}
+
+async function screenMahabharataAdhyay(parbaId, adhyayId) {
+  showBack(true);
+  const parba = window.MahabharataDB.getParbaById(parbaId);
+  if (!parba) return screenMahabharata();
+
+  const downloaded = await window.MahabharataDB.isPackDownloaded(parbaId);
+  if (!downloaded) return screenMahabharataParba(parbaId);
+
+  setTitle("অধ্যায় লোড হচ্ছে…");
+
+  const adhyay = await window.MahabharataDB.getAdhyayById(parbaId, adhyayId);
+  if (!adhyay) { root.innerHTML = `<div class="empty">অধ্যায় পাওয়া যায়নি।</div>`; return; }
+
+  setTitle(`${parba.name} · অধ্যায় ${adhyay.chapter_no}`);
+
+  const upakhyanas = await window.MahabharataDB.getUpakhyanasForAdhyay(parbaId, adhyayId);
+  const { prev, next } = await window.MahabharataDB.getAdjacentAdhyayas(parbaId, adhyayId);
+
+  function navHref(id) {
+    return id ? `#/mahabharata/parba/${parbaId}/adhyay/${id}` : "";
+  }
+
+  // সব উপাখ্যান sectioned by বিষয়/টপিক
+  const sectionsHtml = upakhyanas.map(u => `
+    <div class="section" style="margin-top:14px;">
+      ${u.bishoy ? `<div class="sectionTitle">${u.bishoy}</div>` : ""}
+      <div class="fieldValue" style="white-space:pre-line;line-height:1.9;margin-top:6px;">${(u.content || "").replace(/\n/g, "<br>")}</div>
+    </div>`).join("");
+
+  root.innerHTML = `
+    <div class="mantraDetail" style="text-align:left;">
+      <div style="color:var(--gold);font-size:.88rem;margin-bottom:6px;">${parba.name} · অধ্যায় ${adhyay.chapter_no}</div>
+      <div style="font-size:1.05rem;font-weight:700;line-height:1.5;">${adhyay.title}</div>
+    </div>
+    ${sectionsHtml || `<div class="empty">এই অধ্যায়ে কোনো উপাখ্যান পাওয়া যায়নি।</div>`}
+    <div class="mantraNav">
+      <a class="navBtn ${prev ? "" : "disabled"}" ${prev ? `href="${navHref(prev)}"` : ""}>← আগের অধ্যায়</a>
+      <a class="navBtn ${next ? "" : "disabled"}" ${next ? `href="${navHref(next)}"` : ""}>পরের অধ্যায় →</a>
+    </div>`;
 }
 
 /* ══════════════════════════════════════════════════════
@@ -1759,6 +1932,11 @@ async function router() {
     if (parts[0] === "ramayana" && parts[1] === "kanda" && parts.length === 3) return await screenRamayanaKanda(parseInt(parts[2]));
     if (parts[0] === "ramayana" && parts[1] === "sarga" && parts.length === 3) return await screenRamayanaSarga(parseInt(parts[2]));
     if (parts[0] === "ramayana" && parts[1] === "shloka" && parts.length === 3) return await screenRamayanaShloka(parts[2]);
+
+    // Mahabharata
+    if (parts[0] === "mahabharata" && parts.length === 1) return await screenMahabharata();
+    if (parts[0] === "mahabharata" && parts[1] === "parba" && parts.length === 3) return await screenMahabharataParba(parseInt(parts[2]));
+    if (parts[0] === "mahabharata" && parts[1] === "parba" && parts[3] === "adhyay" && parts.length === 5) return await screenMahabharataAdhyay(parseInt(parts[2]), parseInt(parts[4]));
 
     // Settings
     if (parts[0] === "settings" && parts.length === 1) return await screenSettings();
