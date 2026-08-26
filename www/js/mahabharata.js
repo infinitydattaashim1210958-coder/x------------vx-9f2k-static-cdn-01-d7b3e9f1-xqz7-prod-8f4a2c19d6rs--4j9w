@@ -161,11 +161,56 @@ async function mbDeletePack(parbaId) {
   } catch (e) { /* already gone */ }
 }
 
-/* ── Connection management (LRU — max 3 open পর্ব packs at once) ─────── */
+/* ── Connection management ─────────────────────────────────────────────
+ * IMPORTANT: mahabharata_parba_N.db is downloaded via fetch + Filesystem
+ * .writeFile() into an arbitrary app-data path (mahabharata_packs/...).
+ * CapacitorSQLite's createConnection()/open() only know how to find
+ * files it manages itself (its own default folder + naming convention);
+ * they do NOT accept a raw filesystem path. Passing just a `database`
+ * name there silently opens/creates a *different*, empty database with
+ * that name — which is why "no such table: adhyayas" happened even
+ * though the download succeeded.
+ *
+ * Fix (mirrors ramayana.js's working bhashya-pack pattern): keep a
+ * single lightweight "hub" connection open, and ATTACH each downloaded
+ * pack file to it via raw SQL, which — unlike createConnection/open —
+ * does accept an arbitrary file path. Packs are queried through their
+ * attach alias, e.g. `mb_pack_301.adhyayas`.
+ * ──────────────────────────────────────────────────────────────────── */
 
+const MB_HUB_DB   = "mb_hub";
 const MB_MAX_OPEN = 3;
-const mbOpenConns = new Set();
+const mbOpenConns = new Set();   // parbaIds currently ATTACHed
 const mbOpenOrder = [];
+
+let _mbHubReady = false;
+
+function mbAlias(parbaId) { return `mb_pack_${parbaId}`; }
+
+async function mbEnsureHub() {
+  if (_mbHubReady) return;
+  const sqlite = mbSqlite();
+  if (!sqlite) throw new Error("CapacitorSQLite not available");
+
+  try {
+    await sqlite.createConnection({
+      database: MB_HUB_DB, encrypted: false,
+      mode: "no-encryption", version: 1, readonly: false,
+    });
+  } catch (e) {
+    const msg = (e?.message || String(e)).toLowerCase();
+    if (!msg.includes("already") && !msg.includes("exist")) throw e;
+  }
+
+  try {
+    await sqlite.open({ database: MB_HUB_DB });
+  } catch (e) {
+    const msg = (e?.message || String(e)).toLowerCase();
+    if (!msg.includes("already") && !msg.includes("exist")) throw e;
+  }
+
+  _mbHubReady = true;
+}
 
 function mbMarkUsed(parbaId) {
   const idx = mbOpenOrder.indexOf(parbaId);
@@ -178,7 +223,7 @@ async function mbCloseConnection(parbaId) {
   if (!sqlite) return;
   if (!mbOpenConns.has(parbaId)) return;
   try {
-    await sqlite.close({ database: mbDbName(parbaId) });
+    await sqlite.execute({ database: MB_HUB_DB, statements: `DETACH DATABASE ${mbAlias(parbaId)};` });
   } catch (e) { /* ignore */ }
   mbOpenConns.delete(parbaId);
   const idx = mbOpenOrder.indexOf(parbaId);
@@ -192,12 +237,12 @@ async function mbEvictIfNeeded() {
   mbOpenConns.delete(oldest);
   const sqlite = mbSqlite();
   if (!sqlite) return;
-  try { await sqlite.close({ database: mbDbName(oldest) }); } catch (e) { /* already gone */ }
+  try { await sqlite.execute({ database: MB_HUB_DB, statements: `DETACH DATABASE ${mbAlias(oldest)};` }); }
+  catch (e) { /* already gone */ }
 }
 
 async function mbEnsureOpen(parbaId) {
-  const sqlite = mbSqlite();
-  if (!sqlite) throw new Error("CapacitorSQLite not available");
+  await mbEnsureHub();
 
   if (mbOpenConns.has(parbaId)) {
     mbMarkUsed(parbaId);
@@ -212,29 +257,24 @@ async function mbEnsureOpen(parbaId) {
 
   await mbEvictIfNeeded();
 
-  const fs = mbFs();
+  const fs  = mbFs();
   const dir = mbDir();
   const uri = await fs.getUri({ path: mbPackFileName(parbaId), directory: dir });
   let dbPath = uri.uri;
   if (dbPath.startsWith("file://")) dbPath = dbPath.replace("file://", "");
 
-  const dbName = mbDbName(parbaId);
+  const sqlite = mbSqlite();
+  const alias  = mbAlias(parbaId);
 
   try {
-    await sqlite.createConnection({
-      database: dbName, encrypted: false,
-      mode: "no-encryption", version: 1, readonly: false,
-    });
-  } catch (e) {
-    const msg = (e?.message || String(e)).toLowerCase();
-    if (!msg.includes("already") && !msg.includes("exist")) throw e;
-  }
+    await sqlite.execute({ database: MB_HUB_DB, statements: `DETACH DATABASE ${alias};` });
+  } catch (e) { /* not attached yet, fine */ }
 
   try {
-    await sqlite.open({ database: dbName });
+    await sqlite.execute({ database: MB_HUB_DB, statements: `ATTACH DATABASE '${dbPath}' AS ${alias};` });
   } catch (e) {
-    const msg = (e?.message || String(e)).toLowerCase();
-    if (!msg.includes("already") && !msg.includes("exist")) throw e;
+    const msg = (e?.message || String(e));
+    if (!msg.includes("already in use")) throw e;
   }
 
   mbOpenConns.add(parbaId);
@@ -244,28 +284,32 @@ async function mbEnsureOpen(parbaId) {
 async function mbQuery(parbaId, sql, params = []) {
   await mbEnsureOpen(parbaId);
   const sqlite = mbSqlite();
-  const result = await sqlite.query({ database: mbDbName(parbaId), statement: sql, values: params });
+  const result = await sqlite.query({ database: MB_HUB_DB, statement: sql, values: params });
   return mbRowsOf(result);
 }
 
-/* ── Content queries ───────────────────────────────────────────────── */
+/* ── Content queries (table names qualified with the pack's attach alias) ── */
 
 async function mbGetAdhyayasForParba(parbaId) {
-  return mbQuery(parbaId, "SELECT * FROM adhyayas ORDER BY chapter_no");
+  const a = mbAlias(parbaId);
+  return mbQuery(parbaId, `SELECT * FROM ${a}.adhyayas ORDER BY chapter_no`);
 }
 
 async function mbGetAdhyayById(parbaId, adhyayId) {
-  const rows = await mbQuery(parbaId, "SELECT * FROM adhyayas WHERE id=?", [adhyayId]);
+  const a = mbAlias(parbaId);
+  const rows = await mbQuery(parbaId, `SELECT * FROM ${a}.adhyayas WHERE id=?`, [adhyayId]);
   return rows[0] || null;
 }
 
 async function mbGetUpakhyanasForAdhyay(parbaId, adhyayId) {
-  return mbQuery(parbaId, "SELECT * FROM upakhyanas WHERE adhyay_id=? ORDER BY seq", [adhyayId]);
+  const a = mbAlias(parbaId);
+  return mbQuery(parbaId, `SELECT * FROM ${a}.upakhyanas WHERE adhyay_id=? ORDER BY seq`, [adhyayId]);
 }
 
 async function mbGetAdjacentAdhyayas(parbaId, adhyayId) {
-  const prev = await mbQuery(parbaId, "SELECT id FROM adhyayas WHERE id<? ORDER BY id DESC LIMIT 1", [adhyayId]);
-  const next = await mbQuery(parbaId, "SELECT id FROM adhyayas WHERE id>? ORDER BY id ASC LIMIT 1", [adhyayId]);
+  const a = mbAlias(parbaId);
+  const prev = await mbQuery(parbaId, `SELECT id FROM ${a}.adhyayas WHERE id<? ORDER BY id DESC LIMIT 1`, [adhyayId]);
+  const next = await mbQuery(parbaId, `SELECT id FROM ${a}.adhyayas WHERE id>? ORDER BY id ASC LIMIT 1`, [adhyayId]);
   return {
     prev: prev.length ? prev[0].id : null,
     next: next.length ? next[0].id : null,
@@ -275,15 +319,16 @@ async function mbGetAdjacentAdhyayas(parbaId, adhyayId) {
 /* ── Search (within one downloaded পর্ব) ─────────────────────────────── */
 
 async function mbSearchInParba(parbaId, term, limit = 50) {
+  const a = mbAlias(parbaId);
   const escaped = '"' + term.trim().replace(/"/g, '""') + '"';
   try {
     return mbQuery(
       parbaId,
-      `SELECT u.id, u.adhyay_id, u.bishoy, a.title AS adhyay_title
-       FROM upakhyanas_fts f
-       JOIN upakhyanas u ON u.id = f.rowid
-       JOIN adhyayas a ON a.id = u.adhyay_id
-       WHERE upakhyanas_fts MATCH ?
+      `SELECT u.id, u.adhyay_id, u.bishoy, a2.title AS adhyay_title
+       FROM ${a}.upakhyanas_fts f
+       JOIN ${a}.upakhyanas u ON u.id = f.rowid
+       JOIN ${a}.adhyayas a2 ON a2.id = u.adhyay_id
+       WHERE ${a}.upakhyanas_fts MATCH ?
        LIMIT ?`,
       [escaped, limit]
     );
@@ -291,8 +336,8 @@ async function mbSearchInParba(parbaId, term, limit = 50) {
     const esc = "%" + term.trim().replace(/[%_]/g, "\\$&") + "%";
     return mbQuery(
       parbaId,
-      `SELECT u.id, u.adhyay_id, u.bishoy, a.title AS adhyay_title
-       FROM upakhyanas u JOIN adhyayas a ON a.id = u.adhyay_id
+      `SELECT u.id, u.adhyay_id, u.bishoy, a2.title AS adhyay_title
+       FROM ${a}.upakhyanas u JOIN ${a}.adhyayas a2 ON a2.id = u.adhyay_id
        WHERE u.content LIKE ? OR u.bishoy LIKE ? LIMIT ?`,
       [esc, esc, limit]
     );

@@ -446,6 +446,18 @@ async function ramSearchBhashya(packId, term, limit = 50) {
 
 /* ── Public API ─────────────────────────────────────────────────────── */
 
+async function ramSearchRamayana(term, limit = 50) {
+  const rows = await ramSearchSanskrit(term, limit);
+  return rows.map(r => ({
+    kandaId:  r.kanda_id,
+    sargaId:  r.sarga_id,
+    shlokaId: r.id,
+    ref:      `${r.kanda_id}.${r.sarga_id}.${r.id}`,
+    sanskrit: r.sanskrit,
+    tat:      null,
+  }));
+}
+
 window.RamayanaDB = {
   initDB: ramInitDB,
 
@@ -459,9 +471,13 @@ window.RamayanaDB = {
   getAdjacentShlokas:  ramGetAdjacentShlokas,
 
   // Core text DB lifecycle
-  isCoreDownloaded:    ramIsCoreDownloaded,
-  downloadCore:        ramDownloadCore,
-  deleteCore:          ramDeleteCore,
+  isCoreDownloaded:      ramIsCoreDownloaded,
+  downloadCore:          ramDownloadCore,
+  deleteCore:            ramDeleteCore,
+  // Aliases expected by app.js (kept alongside the *Core names above)
+  isRamayanaDownloaded:  ramIsCoreDownloaded,
+  downloadRamayana:      ramDownloadCore,
+  resetInit:             () => { _ramInitDone = false; },
 
   // Bhashya packs
   KANDA_PACKS:         RAM_KANDA_PACKS,
@@ -474,4 +490,11 @@ window.RamayanaDB = {
   // Search
   searchSanskrit:      ramSearchSanskrit,
   searchBhashya:       ramSearchBhashya,
+  searchRamayana:      ramSearchRamayana,
 };
+
+// app.js reads window.RamayanaDB._initDone directly (not a method call),
+// so mirror the private flag with a live getter instead of a snapshot.
+Object.defineProperty(window.RamayanaDB, "_initDone", {
+  get() { return _ramInitDone; },
+});
