@@ -24,6 +24,19 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      # ── Stable signing identity across builds ────────────────────────
+      # Without this, `npx cap add android` (below) generates a fresh
+      # debug.keystore on every run, so every APK is signed with a
+      # different key — Android then refuses to install a new build as
+      # an *update* over the previous one ("Update not installed" /
+      # INSTALL_FAILED_UPDATE_INCOMPATIBLE). Caching the debug keystore
+      # under a fixed key means the same identity is reused every run.
+      - name: Restore/cache debug signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: swadhyay-debug-keystore-v1
+
       - name: Install npm dependencies
         run: npm install
 
@@ -71,6 +84,21 @@ jobs:
 
       - name: Add Android platform
         run: npx cap add android
+
+      # ── versionCode/versionName must strictly increase for updates ──
+      # `cap add android` always regenerates build.gradle with
+      # versionCode 1 / versionName "1.0". github.run_number is
+      # guaranteed strictly increasing per workflow run, so using it
+      # here guarantees every build is installable as an update over
+      # the previous one with zero manual bumping.
+      - name: Set incrementing versionCode/versionName
+        run: |
+          BUILD_GRADLE="android/app/build.gradle"
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/" "$BUILD_GRADLE"
+          sed -i "s/versionName \"1.0\"/versionName \"${PKG_VERSION}.${{ github.run_number }}\"/" "$BUILD_GRADLE"
+          echo "----- version lines after patch -----"
+          grep -n "versionCode\|versionName" "$BUILD_GRADLE"
 
       - name: Generate app icons and splash screen
         run: npx @capacitor/assets generate --android
