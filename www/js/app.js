@@ -796,8 +796,10 @@ async function screenRamayanaShloka(refEncoded) {
 
   const { prev, next } = await window.RamayanaDB.getAdjacentShlokas(shloka.id, shloka.sarga_id);
 
-  function navHref(r) {
-    return r ? `#/ramayana/shloka/${encodeURIComponent(r)}` : "";
+  function navHref(shlokaId) {
+    if (!shlokaId) return "";
+    const ref = `K${shloka.kanda_id}.S${shloka.sarga_id}.${shlokaId}`;
+    return `#/ramayana/shloka/${encodeURIComponent(ref)}`;
   }
 
   function sizeLabel(bytes) {
@@ -806,28 +808,17 @@ async function screenRamayanaShloka(refEncoded) {
     return kb < 1024 ? `${Math.round(kb)} KB` : `${(kb / 1024).toFixed(1)} MB`;
   }
 
-  // Scholar/Bhāṣya commentary — same download → study → delete pattern as mantras
-  let scholars = [];
-  try {
-    scholars = await window.VedaDB.getScholarsForShloka(shloka.kanda_id, shloka.sarga_id, shloka.id);
-  } catch (e) {
-    console.error("getScholarsForShloka failed:", e);
-  }
+  // Bhāṣya commentary — one pack per Kanda (RamayanaDB's own pack system,
+  // NOT VedaDB.getScholarsForShloka, whose core.db tables are unpopulated
+  // for Ramayana; the real downloaded data lives in ramayana_kanda_N.db.gz).
+  const ramPack = window.RamayanaDB.KANDA_PACKS.find(p => p.kanda_id === shloka.kanda_id);
+  const ramPackDownloaded = ramPack ? await window.RamayanaDB.isPackDownloaded(ramPack.id) : false;
 
-  const scholarTabsHtml = scholars.length ? `
+  const bhashyaSectionHtml = ramPack ? `
     <div class="section" style="margin-top:14px;">
-      <div class="sectionTitle">📜 ভাষ্য (Commentary)</div>
-      <div class="tabBar">
-        ${scholars.map((s, i) => `
-          <button class="tabBtn ${i === 0 ? "active" : ""}" data-scholar="${s.id}">
-            ${s.name}${s.downloaded ? "" : " ⬇"}
-          </button>`).join("")}
-      </div>
-      <div class="tabPanels">
-        ${scholars.map((s, i) => `
-          <div class="tabPanel ${i === 0 ? "active" : ""}" data-scholar="${s.id}" data-loaded="0">
-            <div class="panelBody"></div>
-          </div>`).join("")}
+      <div class="sectionTitle">📜 ভাষ্য (Commentary) — ${ramPack.name}</div>
+      <div class="tabPanel active" id="ramBhashyaPanel">
+        <div class="panelBody"></div>
       </div>
     </div>` : "";
 
@@ -855,7 +846,7 @@ async function screenRamayanaShloka(refEncoded) {
       <div class="fieldValue">${shloka.comment.replace(/\n/g, "<br>")}</div>
     </div>` : ""}
 
-    ${scholarTabsHtml}
+    ${bhashyaSectionHtml}
 
     <div class="mantraNav">
       <a class="navBtn ${prev ? "" : "disabled"}" ${prev ? `href="${navHref(prev)}"` : ""}>← আগের শ্লোক</a>
@@ -868,35 +859,26 @@ async function screenRamayanaShloka(refEncoded) {
     preview: (shloka.sanskrit || "").replace(/\n/g, " ").slice(0, 140),
   });
 
-  if (!scholars.length) return;
+  if (!ramPack) return;
 
-  const scholarsById = {};
-  scholars.forEach(s => (scholarsById[s.id] = s));
+  const panel = document.getElementById("ramBhashyaPanel");
+  const body = panel.querySelector(".panelBody");
 
-  async function loadPanel(panel) {
-    if (panel.dataset.loaded === "1") return;
-    const scholarId = parseInt(panel.dataset.scholar, 10);
-    const s = scholarsById[scholarId];
-    const body = panel.querySelector(".panelBody");
-
-    if (!s.downloaded) {
+  async function loadBhashyaPanel() {
+    if (!ramPackDownloaded) {
       body.innerHTML = `
         <div class="downloadPrompt">
-          <div class="downloadPromptText">এই ভাষ্য ডাউনলোড করা হয়নি (${sizeLabel(s.pack_size_bytes)}, ${s.entry_count || 0} এন্ট্রি)</div>
-          <button class="bookBtn downloadBtn" data-scholar-dl="${scholarId}">ডাউনলোড করুন</button>
-          <div class="bookStatus" data-dl-status="${scholarId}"></div>
+          <div class="downloadPromptText">এই ভাষ্য ডাউনলোড করা হয়নি (${sizeLabel(ramPack.pack_size_bytes)})</div>
+          <button class="bookBtn downloadBtn" id="ramBhashyaDownloadBtn">ডাউনলোড করুন</button>
+          <div class="bookStatus" id="ramBhashyaDownloadStatus"></div>
         </div>`;
-      body.querySelector(".downloadBtn").addEventListener("click", async () => {
-        const btn = body.querySelector(".downloadBtn");
-        const statusEl = body.querySelector(`[data-dl-status="${scholarId}"]`);
+      document.getElementById("ramBhashyaDownloadBtn").addEventListener("click", async () => {
+        const btn = document.getElementById("ramBhashyaDownloadBtn");
+        const statusEl = document.getElementById("ramBhashyaDownloadStatus");
         btn.disabled = true;
         try {
-          await window.VedaDB.downloadPack(scholarId, s.pack_file, msg => { if (statusEl) statusEl.textContent = msg; });
-          s.downloaded = true;
-          panel.dataset.loaded = "0";
-          await loadPanel(panel);
-          const tabBtn = root.querySelector(`.tabBtn[data-scholar="${scholarId}"]`);
-          if (tabBtn) tabBtn.innerHTML = s.name;
+          await window.RamayanaDB.downloadPack(ramPack.id, ramPack.pack_file, msg => { if (statusEl) statusEl.textContent = msg; });
+          await loadBhashyaFields();
         } catch (e) {
           btn.disabled = false;
           if (statusEl) statusEl.textContent = "ব্যর্থ: " + (e.message || e);
@@ -904,58 +886,32 @@ async function screenRamayanaShloka(refEncoded) {
       });
       return;
     }
+    await loadBhashyaFields();
+  }
 
+  async function loadBhashyaFields() {
     body.innerHTML = `<div class="empty" style="padding:20px 0;">লোড হচ্ছে…</div>`;
     try {
-      const fields = await window.VedaDB.getBhashyaForShlokaFromPack(scholarId, shloka.kanda_id, shloka.sarga_id, shloka.id);
+      const fields = await window.RamayanaDB.getBhashyaForShloka(ramPack.id, shloka.id);
       body.innerHTML = `
         <div class="panelDeleteRow">
-          <button class="miniBtn deletePackBtn" data-scholar-del="${scholarId}">এই ভাষ্য মুছুন</button>
+          <button class="miniBtn" id="ramBhashyaDeleteBtn">এই ভাষ্য মুছুন</button>
         </div>
         ${fields.length
           ? fields.map(f => `<div class="field"><div class="fieldLabel">${f.field_key}</div><div class="fieldValue">${f.value}</div></div>`).join("")
-          : `<div class="empty">এই শ্লোকে এই ভাষ্যকারের কোনো তথ্য নেই।</div>`}`;
-      body.querySelector(".deletePackBtn").addEventListener("click", async () => {
-        if (!confirm(`"${s.name}" ভাষ্য মুছে ফেলতে চান?`)) return;
-        await window.VedaDB.deletePack(scholarId);
-        s.downloaded = false;
-        panel.dataset.loaded = "0";
-        await loadPanel(panel);
-        const tabBtn = root.querySelector(`.tabBtn[data-scholar="${scholarId}"]`);
-        if (tabBtn) tabBtn.innerHTML = s.name + " ⬇";
+          : `<div class="empty">এই শ্লোকে কোনো ভাষ্য তথ্য নেই।</div>`}`;
+      document.getElementById("ramBhashyaDeleteBtn").addEventListener("click", async () => {
+        if (!confirm(`"${ramPack.name}" মুছে ফেলতে চান?`)) return;
+        await window.RamayanaDB.deletePack(ramPack.id);
+        body.innerHTML = "";
+        await loadBhashyaPanel(); // will now show the download prompt again
       });
     } catch (e) {
       body.innerHTML = `<div class="empty">লোড করতে সমস্যা।<br><small>${e.message || e}</small></div>`;
     }
-    panel.dataset.loaded = "1";
   }
 
-  const firstPanel = root.querySelector(".tabPanel.active");
-  if (firstPanel) loadPanel(firstPanel);
-
-  let _ramActiveScholarId = null;
-  const initRamBtn = root.querySelector(".tabBtn.active");
-  if (initRamBtn) _ramActiveScholarId = parseInt(initRamBtn.dataset.scholar, 10);
-
-  root.querySelectorAll(".tabBtn").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      const newId = parseInt(btn.dataset.scholar, 10);
-      if (newId === _ramActiveScholarId) return;
-      if (_ramActiveScholarId != null) {
-        try { await window.VedaDB.detachPack(_ramActiveScholarId); } catch (e) {}
-        const prev = root.querySelector(`.tabPanel[data-scholar="${_ramActiveScholarId}"]`);
-        if (prev && prev.dataset.loaded === "1") prev.dataset.loaded = "0";
-      }
-      _ramActiveScholarId = newId;
-      root.querySelectorAll(".tabBtn").forEach(b => b.classList.remove("active"));
-      root.querySelectorAll(".tabPanel").forEach(p => p.classList.remove("active"));
-      btn.classList.add("active");
-      const panel = root.querySelector(`.tabPanel[data-scholar="${btn.dataset.scholar}"]`);
-      panel.classList.add("active");
-      loadPanel(panel);
-      btn.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-    });
-  });
+  await loadBhashyaPanel();
 }
 
 /* ══════════════════════════════════════════════════════
