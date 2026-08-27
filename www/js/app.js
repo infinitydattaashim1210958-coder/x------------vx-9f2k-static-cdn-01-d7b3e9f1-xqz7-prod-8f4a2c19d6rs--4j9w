@@ -1200,6 +1200,27 @@ async function screenLibraryReader(bookId) {
     }
 
     frame.addEventListener("load", () => {
+      // Universal Font System — an <iframe> is a separate document and
+      // does not inherit the parent's :root CSS variables, so html_book
+      // content would otherwise ignore the user's font choice entirely.
+      // Inject the same font settings directly into the book's document.
+      try {
+        const cd = frame.contentDocument;
+        const fontFamily = getComputedStyle(document.documentElement)
+          .getPropertyValue("--reader-font-family") || "inherit";
+        const fontSize = getComputedStyle(document.documentElement)
+          .getPropertyValue("--reader-font-size") || "18px";
+        const style = cd.createElement("style");
+        style.id = "chaturveda-global-font";
+        style.textContent = `
+          html, body, p, div, span, li, td, th {
+            font-family: ${fontFamily} !important;
+          }
+          body { font-size: ${fontSize}; }
+        `;
+        cd.head.appendChild(style);
+      } catch (e) { /* cross-origin — book can't be restyled, ignore */ }
+
       if (pendingPct == null) return;
       try {
         const cw = frame.contentWindow, cd = frame.contentDocument;
