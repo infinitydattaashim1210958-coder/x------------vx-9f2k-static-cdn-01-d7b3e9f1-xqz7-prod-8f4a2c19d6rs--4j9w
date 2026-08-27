@@ -183,6 +183,18 @@ async function ramGetShlokaById(shlokaId) {
   return rows[0] || null;
 }
 
+// ref format: "K1.S2.3" → kanda_id=1, sarga_id=2, shloka_id=3
+async function ramGetShlokaByRef(ref) {
+  const m = String(ref).match(/^K(\d+)\.S(\d+)\.(\d+)$/);
+  if (!m) return null;
+  const [, kandaId, sargaId, shlokaId] = m.map(Number);
+  const rows = await ramQuery(
+    "SELECT * FROM shlokas WHERE kanda_id=? AND sarga_id=? AND id=? LIMIT 1",
+    [kandaId, sargaId, shlokaId]
+  );
+  return rows[0] || null;
+}
+
 async function ramGetAdjacentShlokas(shlokaId, sargaId) {
   const prev = await ramQuery(
     "SELECT id FROM shlokas WHERE sarga_id=? AND id<? ORDER BY id DESC LIMIT 1",
@@ -446,18 +458,6 @@ async function ramSearchBhashya(packId, term, limit = 50) {
 
 /* ── Public API ─────────────────────────────────────────────────────── */
 
-async function ramSearchRamayana(term, limit = 50) {
-  const rows = await ramSearchSanskrit(term, limit);
-  return rows.map(r => ({
-    kandaId:  r.kanda_id,
-    sargaId:  r.sarga_id,
-    shlokaId: r.id,
-    ref:      `${r.kanda_id}.${r.sarga_id}.${r.id}`,
-    sanskrit: r.sanskrit,
-    tat:      null,
-  }));
-}
-
 window.RamayanaDB = {
   initDB: ramInitDB,
 
@@ -468,16 +468,13 @@ window.RamayanaDB = {
   getSargaById:        ramGetSargaById,
   getShlokasForSarga:  ramGetShlokasForSarga,
   getShlokaById:       ramGetShlokaById,
+  getShlokaByRef:      ramGetShlokaByRef,
   getAdjacentShlokas:  ramGetAdjacentShlokas,
 
   // Core text DB lifecycle
-  isCoreDownloaded:      ramIsCoreDownloaded,
-  downloadCore:          ramDownloadCore,
-  deleteCore:            ramDeleteCore,
-  // Aliases expected by app.js (kept alongside the *Core names above)
-  isRamayanaDownloaded:  ramIsCoreDownloaded,
-  downloadRamayana:      ramDownloadCore,
-  resetInit:             () => { _ramInitDone = false; },
+  isCoreDownloaded:    ramIsCoreDownloaded,
+  downloadCore:        ramDownloadCore,
+  deleteCore:          ramDeleteCore,
 
   // Bhashya packs
   KANDA_PACKS:         RAM_KANDA_PACKS,
@@ -490,11 +487,4 @@ window.RamayanaDB = {
   // Search
   searchSanskrit:      ramSearchSanskrit,
   searchBhashya:       ramSearchBhashya,
-  searchRamayana:      ramSearchRamayana,
 };
-
-// app.js reads window.RamayanaDB._initDone directly (not a method call),
-// so mirror the private flag with a live getter instead of a snapshot.
-Object.defineProperty(window.RamayanaDB, "_initDone", {
-  get() { return _ramInitDone; },
-});

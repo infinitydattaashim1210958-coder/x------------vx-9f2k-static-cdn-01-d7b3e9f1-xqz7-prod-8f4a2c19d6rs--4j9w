@@ -676,7 +676,7 @@ async function screenRamayanaSarga(sargaId) {
   if (!sarga) { root.innerHTML = `<div class="empty">Sarga পাওয়া যায়নি।</div>`; return; }
 
   await ensureKandaCache();
-  const kanda = kandaCache[sarga.kanda.id];
+  const kanda = kandaCache[sarga.kanda_id];
   setTitle(`${kanda?.name || ""} · Sarga ${sarga.chapter}`);
 
   const shlokas = await window.RamayanaDB.getShlokasForSarga(sargaId);
@@ -689,7 +689,7 @@ async function screenRamayanaSarga(sargaId) {
     <div class="listHeader">${shlokas.length} Shlokas</div>
     <div class="mantraList">
       ${shlokas.map(sh => {
-        const ref = `K${sh.kanda.id}.S${sh.sarga.id}.${sh.id}`;
+        const ref = `K${sh.kanda_id}.S${sh.sarga_id}.${sh.id}`;
         const preview = (sh.sanskrit || "").slice(0, 70).replace(/\n/g, " ");
         return `<a class="mantraItem" href="#/ramayana/shloka/${encodeURIComponent(ref)}">
           <div class="mref">Shloka ${sh.id}</div>
@@ -712,10 +712,10 @@ async function screenRamayanaShloka(refEncoded) {
   }
 
   await ensureKandaCache();
-  const kanda = kandaCache[shloka.kanda.id];
-  setTitle(`${kanda?.name || ""} · Sarga ${shloka.sarga.id} · ${shloka.id}`);
+  const kanda = kandaCache[shloka.kanda_id];
+  setTitle(`${kanda?.name || ""} · Sarga ${shloka.sarga_id} · ${shloka.id}`);
 
-  const { prev, next } = await window.RamayanaDB.getAdjacentShlokas(shloka._rowid, shloka.sarga.id);
+  const { prev, next } = await window.RamayanaDB.getAdjacentShlokas(shloka.id, shloka.sarga_id);
 
   function navHref(r) {
     return r ? `#/ramayana/shloka/${encodeURIComponent(r)}` : "";
@@ -730,7 +730,7 @@ async function screenRamayanaShloka(refEncoded) {
   // Scholar/Bhāṣya commentary — same download → study → delete pattern as mantras
   let scholars = [];
   try {
-    scholars = await window.VedaDB.getScholarsForShloka(shloka.kanda.id, shloka.sarga.id, shloka.id);
+    scholars = await window.VedaDB.getScholarsForShloka(shloka.kanda_id, shloka.sarga_id, shloka.id);
   } catch (e) {
     console.error("getScholarsForShloka failed:", e);
   }
@@ -754,7 +754,7 @@ async function screenRamayanaShloka(refEncoded) {
 
   root.innerHTML = `
     <div class="mantraDetail">
-      <div class="mantraMeta">${kanda?.name || ""} Kanda · Sarga ${shloka.sarga.id} · Shloka ${shloka.id}</div>
+      <div class="mantraMeta">${kanda?.name || ""} Kanda · Sarga ${shloka.sarga_id} · Shloka ${shloka.id}</div>
       <div class="sanskritBlock" style="margin-top:12px;">${(shloka.sanskrit || "").replace(/\n/g, "<br>")}</div>
     </div>
 
@@ -785,7 +785,7 @@ async function screenRamayanaShloka(refEncoded) {
 
   showBookmarkFab({
     title: kanda?.name || "রামায়ণ",
-    subtitle: `Sarga ${shloka.sarga.id} · Shloka ${shloka.id}`,
+    subtitle: `Sarga ${shloka.sarga_id} · Shloka ${shloka.id}`,
     preview: (shloka.tat || shloka.sanskrit || "").replace(/\n/g, " ").slice(0, 140),
   });
 
@@ -828,7 +828,7 @@ async function screenRamayanaShloka(refEncoded) {
 
     body.innerHTML = `<div class="empty" style="padding:20px 0;">লোড হচ্ছে…</div>`;
     try {
-      const fields = await window.VedaDB.getBhashyaForShlokaFromPack(scholarId, shloka.kanda.id, shloka.sarga.id, shloka.id);
+      const fields = await window.VedaDB.getBhashyaForShlokaFromPack(scholarId, shloka.kanda_id, shloka.sarga_id, shloka.id);
       body.innerHTML = `
         <div class="panelDeleteRow">
           <button class="miniBtn deletePackBtn" data-scholar-del="${scholarId}">এই ভাষ্য মুছুন</button>
