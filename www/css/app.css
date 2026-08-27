@@ -441,3 +441,15 @@ a{color:inherit;text-decoration:none;}
 .addBookmarkFab:active { transform: scale(.94); }
 
 .bookmarkList .mantraItem { padding-right: 40px; }
+
+/* Continue Reading card (Home screen) */
+.continueReadingCard {
+  background: linear-gradient(135deg, rgba(212,162,76,.12), rgba(212,162,76,.04));
+  border: 1px solid var(--gold);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin: 14px 0;
+  cursor: pointer;
+}
+.continueReadingLabel { font-size: .75rem; color: var(--gold); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+.continueReadingTitle { font-size: 1rem; color: var(--parchment); }
