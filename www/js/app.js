@@ -497,8 +497,20 @@ async function screenMantra(code, refEncodedWithQuery) {
     });
   });
 
+  let _vedaActiveScholarId = null;
+  const initVedaBtn = root.querySelector(".tabBtn.active");
+  if (initVedaBtn) _vedaActiveScholarId = parseInt(initVedaBtn.dataset.scholar, 10);
+
   root.querySelectorAll(".tabBtn").forEach(btn => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
+      const newId = parseInt(btn.dataset.scholar, 10);
+      if (newId === _vedaActiveScholarId) return;
+      if (_vedaActiveScholarId != null) {
+        try { await window.VedaDB.detachPack(_vedaActiveScholarId); } catch (e) {}
+        const prev = root.querySelector(`.tabPanel[data-scholar="${_vedaActiveScholarId}"]`);
+        if (prev && prev.dataset.loaded === "1") prev.dataset.loaded = "0";
+      }
+      _vedaActiveScholarId = newId;
       const group = btn.closest(".scholarGroup");
       group.querySelectorAll(".tabBtn").forEach(b => b.classList.remove("active"));
       group.querySelectorAll(".tabPanel").forEach(p => p.classList.remove("active"));
@@ -506,7 +518,7 @@ async function screenMantra(code, refEncodedWithQuery) {
       const panel = group.querySelector(`.tabPanel[data-scholar="${btn.dataset.scholar}"]`);
       panel.classList.add("active");
       loadPanel(panel);
-      navState.scholarId = parseInt(btn.dataset.scholar, 10);
+      navState.scholarId = newId;
       refreshNavLinks();
       btn.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
     });
@@ -786,7 +798,7 @@ async function screenRamayanaShloka(refEncoded) {
   showBookmarkFab({
     title: kanda?.name || "রামায়ণ",
     subtitle: `Sarga ${shloka.sarga_id} · Shloka ${shloka.id}`,
-    preview: (shloka.tat || shloka.sanskrit || "").replace(/\n/g, " ").slice(0, 140),
+    preview: (shloka.sanskrit || "").replace(/\n/g, " ").slice(0, 140),
   });
 
   if (!scholars.length) return;
@@ -854,14 +866,27 @@ async function screenRamayanaShloka(refEncoded) {
   const firstPanel = root.querySelector(".tabPanel.active");
   if (firstPanel) loadPanel(firstPanel);
 
+  let _ramActiveScholarId = null;
+  const initRamBtn = root.querySelector(".tabBtn.active");
+  if (initRamBtn) _ramActiveScholarId = parseInt(initRamBtn.dataset.scholar, 10);
+
   root.querySelectorAll(".tabBtn").forEach(btn => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
+      const newId = parseInt(btn.dataset.scholar, 10);
+      if (newId === _ramActiveScholarId) return;
+      if (_ramActiveScholarId != null) {
+        try { await window.VedaDB.detachPack(_ramActiveScholarId); } catch (e) {}
+        const prev = root.querySelector(`.tabPanel[data-scholar="${_ramActiveScholarId}"]`);
+        if (prev && prev.dataset.loaded === "1") prev.dataset.loaded = "0";
+      }
+      _ramActiveScholarId = newId;
       root.querySelectorAll(".tabBtn").forEach(b => b.classList.remove("active"));
       root.querySelectorAll(".tabPanel").forEach(p => p.classList.remove("active"));
       btn.classList.add("active");
       const panel = root.querySelector(`.tabPanel[data-scholar="${btn.dataset.scholar}"]`);
       panel.classList.add("active");
       loadPanel(panel);
+      btn.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
     });
   });
 }
