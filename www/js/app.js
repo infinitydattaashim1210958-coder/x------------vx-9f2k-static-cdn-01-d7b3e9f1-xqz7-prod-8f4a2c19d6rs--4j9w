@@ -85,12 +85,65 @@ function showBookmarkFab(meta) {
     addBookmarkFab.textContent = "✅";
     setTimeout(() => { if (addBookmarkFab) addBookmarkFab.textContent = "🔖"; }, 900);
   };
+  startReadingPositionTracking(meta);
 }
 
 function hideBookmarkFab() {
   if (!addBookmarkFab) return;
   addBookmarkFab.style.display = "none";
   addBookmarkFab.onclick = null;
+  stopReadingPositionTracking();
+}
+
+/* ── Continue Reading / Last Position ─────────────────────────────────
+ * Piggybacks on the same show/hide lifecycle as the bookmark FAB, since
+ * that already marks exactly which screens are "reading screens". Every
+ * reader screen calling showBookmarkFab(meta) gets its position tracked
+ * automatically — no extra call sites needed. */
+
+let _readingPosCleanup = null;
+
+function startReadingPositionTracking(meta) {
+  stopReadingPositionTracking();
+  if (!window.ReadingPosition) return;
+
+  const record = () => {
+    const pct = meta.getScrollPercent ? meta.getScrollPercent() : bmCurrentScrollPercent();
+    window.ReadingPosition.record({
+      hash: location.hash,
+      title: meta.title,
+      subtitle: meta.subtitle,
+      scrollPercent: pct,
+    });
+  };
+
+  record(); // capture the opening position immediately
+
+  let debounceTimer;
+  const onScroll = () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(record, 800);
+  };
+
+  // Library reader scrolls inside its <iframe>'s own window, not the
+  // main window — the caller passes that in as scrollEventTarget.
+  const scrollTarget = meta.scrollEventTarget || window;
+  try { scrollTarget.addEventListener("scroll", onScroll, { passive: true }); }
+  catch (e) { /* cross-origin — skip live tracking, opening snapshot still recorded */ }
+  document.addEventListener("visibilitychange", record);
+
+  _readingPosCleanup = () => {
+    clearTimeout(debounceTimer);
+    try { scrollTarget.removeEventListener("scroll", onScroll); } catch (e) { /* ignore */ }
+    document.removeEventListener("visibilitychange", record);
+  };
+}
+
+function stopReadingPositionTracking() {
+  if (_readingPosCleanup) {
+    _readingPosCleanup();
+    _readingPosCleanup = null;
+  }
 }
 
 function openBookmark(bm) {
@@ -198,12 +251,26 @@ async function screenHome() {
     </a>`;
   }).join("");
 
+  const continueReading = window.ReadingPosition ? await window.ReadingPosition.getLatest() : null;
+  const continueCard = continueReading ? `
+    <div class="continueReadingCard" id="continueReadingCard">
+      <div class="continueReadingLabel">আপনার পড়া চালিয়ে যান</div>
+      <div class="continueReadingTitle">${continueReading.title}${continueReading.subtitle ? " · " + continueReading.subtitle : ""}</div>
+    </div>` : "";
+
   root.innerHTML = `
     <div class="hero">
       <div class="om">ओ३म्</div>
       <div class="sub">The Four Vedas & Valmiki Ramayana — সম্পূর্ণ সংকলন</div>
     </div>
+    ${continueCard}
     <div class="homeList">${items}</div>`;
+
+  if (continueReading) {
+    document.getElementById("continueReadingCard").addEventListener("click", () => {
+      openBookmark(continueReading); // same hash + scroll% restore path as a bookmark tap
+    });
+  }
 }
 
 async function screenVedas() {
@@ -1234,6 +1301,7 @@ async function screenLibraryReader(bookId) {
       subtitle: "ডিজিটাল লাইব্রেরি",
       preview: "",
       getScrollPercent: iframeScrollPercent,
+      scrollEventTarget: frame.contentWindow,
     });
   } catch (e) {
     root.innerHTML = `<div class="empty">বই খুলতে সমস্যা।<br><small>${e.message || e}</small></div>`;
@@ -1254,6 +1322,7 @@ async function screenSearch() {
       <button class="langChip active" data-scope="all">সব</button>
       <button class="langChip" data-scope="vedas">Vedas</button>
       <button class="langChip" data-scope="ramayana">Ramayana</button>
+      <button class="langChip" data-scope="mahabharata">Mahabharata</button>
     </div>
     <div id="searchResults"></div>`;
 
@@ -1288,10 +1357,10 @@ async function runSearch(term, scope = "all") {
   try {
     let html = "";
 
-    if (scope !== "ramayana") {
+    if (scope === "all" || scope === "vedas") {
       const results = await window.VedaDB.search(null, term, 30);
       if (results.length) {
-        html += `<div class="listHeader" style="margin-bottom:8px;">Vedas (${results.length})</div>`;
+        html += `<div class="listHeader" style="margin-bottom:8px;">📜 বেদ (${results.length})</div>`;
         html += results.map(r => `
           <a class="mantraItem" href="#/mantra/${r.veda_code}/${encodeURIComponent(r.mantra_ref_id)}">
             <div class="mref">${codeToName[r.veda_code] || r.veda_code} ${r.mantra_ref_id}</div>
@@ -1300,10 +1369,10 @@ async function runSearch(term, scope = "all") {
       }
     }
 
-    if (scope !== "vedas" && window.RamayanaDB._initDone) {
+    if ((scope === "all" || scope === "ramayana") && window.RamayanaDB._initDone) {
       const rResults = await window.RamayanaDB.searchRamayana(term, 30);
       if (rResults.length) {
-        html += `<div class="listHeader" style="margin:14px 0 8px;">Ramayana (${rResults.length})</div>`;
+        html += `<div class="listHeader" style="margin:14px 0 8px;">📖 রামায়ণ (${rResults.length})</div>`;
         html += rResults.map(r => {
           const kanda = kandaCache[r.kandaId];
           return `
@@ -1312,6 +1381,37 @@ async function runSearch(term, scope = "all") {
               <div class="mtext">${(r.tat || r.sanskrit || "").slice(0, 90)}…</div>
             </a>`;
         }).join("");
+      }
+    }
+
+    if ((scope === "all" || scope === "mahabharata") && window.MahabharataDB) {
+      const parbas = window.MahabharataDB.PARBAS;
+      const downloadedFlags = await Promise.all(
+        parbas.map(p => window.MahabharataDB.isPackDownloaded(p.id))
+      );
+      const downloaded = parbas.filter((_, i) => downloadedFlags[i]);
+      const notDownloadedCount = parbas.length - downloaded.length;
+
+      // Cap per-পর্ব so one huge পর্ব doesn't crowd out the rest; overall
+      // results still bounded by how many পর্ব packs are downloaded.
+      const perParbaLimit = 8;
+      const mbResultsNested = await Promise.all(
+        downloaded.map(p => window.MahabharataDB.searchInParba(p.id, term, perParbaLimit)
+          .then(rows => rows.map(r => ({ ...r, parba: p })))
+          .catch(() => []))
+      );
+      const mbResults = [].concat(...mbResultsNested).slice(0, 30);
+
+      if (mbResults.length) {
+        html += `<div class="listHeader" style="margin:14px 0 8px;">📚 মহাভারত (${mbResults.length})</div>`;
+        html += mbResults.map(r => `
+          <a class="mantraItem" href="#/mahabharata/parba/${r.parba.id}/adhyay/${r.adhyay_id}">
+            <div class="mref">${r.parba.name} · ${r.adhyay_title || "অধ্যায় " + r.adhyay_id}</div>
+            <div class="mtext">${(r.bishoy || "").slice(0, 90)}…</div>
+          </a>`).join("");
+      }
+      if (notDownloadedCount > 0 && (scope === "mahabharata" || mbResults.length === 0)) {
+        html += `<div class="empty" style="padding:12px 4px;text-align:left;">${notDownloadedCount}টা পর্ব ডাউনলোড করা নেই — সেগুলোতে খোঁজা হয়নি।</div>`;
       }
     }
 

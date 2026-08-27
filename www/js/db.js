@@ -165,6 +165,16 @@ async function initDB() {
 
 
 
+  // ── Schema migrations ────────────────────────────────────────────
+  // Never delete/recreate core.db to change its schema — that would
+  // wipe anything a future version stores in it. Instead: track a
+  // version number in app_meta, and apply only the ALTER/CREATE
+  // statements needed to move forward from whatever version this
+  // install is currently on.
+  await runMigrations();
+
+
+
   // Create Bhāṣya directory (non-fatal if Filesystem unavailable)
 
   try {
@@ -196,6 +206,84 @@ async function initDB() {
   }
 
 
+}
+
+
+
+
+/**
+ * ── Database migration framework ──────────────────────────────────
+ *
+ * Rule: core.db is NEVER dropped or recreated to apply a schema
+ * change. Existing installs keep their data (bookmarks live
+ * separately in Preferences, but any future core.db user data —
+ * reading history, notes, etc. — depends on this holding).
+ *
+ * To add a schema change in a future release:
+ *   1. Bump CURRENT_DB_VERSION by 1.
+ *   2. Add a new `if (version < N) { ...; version = N; }` block
+ *      below, containing only ALTER TABLE / CREATE TABLE IF NOT
+ *      EXISTS statements — never DROP TABLE on user data.
+ *
+ * Example for the next migration:
+ *   if (version < 2) {
+ *     await dbExec(`ALTER TABLE bookmarks ADD COLUMN note TEXT;`);
+ *     version = 2;
+ *     await setDbVersion(version);
+ *   }
+ */
+
+const CURRENT_DB_VERSION = 1;
+
+async function dbExec(statements) {
+  const sqlite = sqlitePlugin();
+  if (!sqlite) throw new Error("SQLite plugin not available");
+  await sqlite.execute({ database: CORE_DB_NAME, statements });
+}
+
+async function ensureAppMeta() {
+  await dbExec(`
+    CREATE TABLE IF NOT EXISTS app_meta (
+      key TEXT PRIMARY KEY,
+      value TEXT
+    );
+  `);
+}
+
+async function getDbVersion() {
+  await ensureAppMeta();
+  const rows = await query(`SELECT value FROM app_meta WHERE key='db_version'`);
+  if (!rows.length) return 0; // no row yet — pre-migration-framework install
+  const v = parseInt(rows[0].value, 10);
+  return Number.isFinite(v) ? v : 0;
+}
+
+async function setDbVersion(v) {
+  await dbExec(`
+    INSERT INTO app_meta (key, value) VALUES ('db_version', '${v}')
+    ON CONFLICT(key) DO UPDATE SET value='${v}';
+  `);
+}
+
+async function runMigrations() {
+  let version = await getDbVersion();
+
+  // Installs from before this framework existed have version 0 with a
+  // schema that already matches CURRENT_DB_VERSION's baseline — record
+  // that baseline without running any statements against it.
+  if (version === 0) {
+    version = CURRENT_DB_VERSION;
+    await setDbVersion(version);
+    return;
+  }
+
+  // Future migrations are added here, each guarded by `if (version < N)`,
+  // so an install already at N safely skips it. Never remove a past
+  // migration block once released — older installs may still need it.
+
+  if (version < CURRENT_DB_VERSION) {
+    await setDbVersion(CURRENT_DB_VERSION);
+  }
 }
 
 
@@ -1384,6 +1472,8 @@ window.VedaDB = {
   // Database initialization
 
   initDB,
+
+  getDbVersion,
 
 
 
