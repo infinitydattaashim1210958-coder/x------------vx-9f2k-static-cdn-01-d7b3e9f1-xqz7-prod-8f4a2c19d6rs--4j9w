@@ -1219,11 +1219,19 @@ async function deletePack(scholarId) {
  * since pack filenames are derived from scholarId alone (packFileName()).
  */
 
-// ── LRU Pack Manager (SQLite max 10 ATTACH; we use 8 max, leaving margin) ──
+// ── LRU Pack Manager (SQLite max 10 ATTACH; we use 6 max, leaving margin
+// for main + any stale/orphaned attachments the emergency reset below
+// hasn't caught yet) ──
 // Keeps track of attach order. When limit reached, evicts the oldest.
-const MAX_ATTACHED_PACKS = 8;
+const MAX_ATTACHED_PACKS = 6;
 const attachedPacks = new Set();          // currently attached scholar IDs
 const attachedPacksOrder = [];            // insertion-order list for LRU eviction
+const everAttachedAliases = new Set();    // every alias ever attached this
+                                           // session — used for emergency
+                                           // full-reset if leaks accumulate
+                                           // past SQLite's real limit despite
+                                           // our own tracking believing
+                                           // there's room (see bug note below)
 
 // ── Attach lock ───────────────────────────────────────────────────
 // evictOldestPackIfNeeded()+ATTACH is a check-then-act sequence. Without
@@ -1244,11 +1252,37 @@ async function evictOldestPackIfNeeded(sqlite) {
   // Evict the least-recently-used (front of queue)
   const oldest = attachedPacksOrder.shift();
   if (oldest == null) return;
-  attachedPacks.delete(oldest);
   const alias = packDbName(oldest);
   try {
     await sqlite.execute({ database: CORE_DB_NAME, statements: `DETACH DATABASE ${alias};` });
-  } catch (e) { /* already gone */ }
+    // Only stop tracking it once we've confirmed it's actually gone —
+    // deleting from `attachedPacks` unconditionally here (the previous
+    // bug) let failed detaches silently leak: SQLite kept the real
+    // attachment while our tracker believed there was free room, so the
+    // count crept past SQLite's hard cap of 10 with no visible symptom
+    // until it did.
+    attachedPacks.delete(oldest);
+  } catch (e) {
+    // Genuinely couldn't detach — put it back at the front so eviction
+    // retries it next time, rather than losing track of it while it's
+    // still actually attached.
+    attachedPacksOrder.unshift(oldest);
+    console.warn("Pack eviction DETACH failed, will retry:", alias, e);
+  }
+}
+
+// Last-resort recovery: if SQLite still refuses an ATTACH with "too many
+// attached databases" even after our own bookkeeping says there's room,
+// our tracking has drifted from reality (see evictOldestPackIfNeeded
+// note above). Forcibly DETACH every alias we've ever attached this
+// session and reset tracking to empty, then let the caller retry once.
+async function emergencyDetachAllPacks(sqlite) {
+  for (const alias of everAttachedAliases) {
+    try { await sqlite.execute({ database: CORE_DB_NAME, statements: `DETACH DATABASE ${alias};` }); }
+    catch (e) { /* wasn't actually attached, fine */ }
+  }
+  attachedPacks.clear();
+  attachedPacksOrder.length = 0;
 }
 
 function markPackUsed(scholarId) {
@@ -1287,13 +1321,28 @@ async function ensurePackAttached(scholarId) {
         await sqlite.execute({ database: CORE_DB_NAME, statements: `DETACH DATABASE ${alias};` });
       } catch (e) { /* not attached yet, ignore */ }
 
+      const doAttach = () => sqlite.execute({
+        database: CORE_DB_NAME,
+        statements: `ATTACH DATABASE '${dbPath}' AS ${alias};`,
+      });
+
       try {
-        await sqlite.execute({ database: CORE_DB_NAME, statements: `ATTACH DATABASE '${dbPath}' AS ${alias};` });
+        await doAttach();
       } catch (error) {
         const msg = error.message || String(error);
-        if (!msg.includes("already in use")) throw error;
+        if (msg.includes("already in use")) {
+          // fine — already attached under this alias
+        } else if (msg.toLowerCase().includes("too many attached databases")) {
+          // Our tracking thought there was room; reality disagreed.
+          // Nuclear reset, then retry once.
+          await emergencyDetachAllPacks(sqlite);
+          await doAttach();
+        } else {
+          throw error;
+        }
       }
 
+      everAttachedAliases.add(alias);
       attachedPacks.add(scholarId);
     }
 

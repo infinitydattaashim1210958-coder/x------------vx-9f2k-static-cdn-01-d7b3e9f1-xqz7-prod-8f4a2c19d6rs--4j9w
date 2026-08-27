@@ -1572,7 +1572,20 @@ async function screenReaderSettings() {
 
 /* ══════════════════════════════════════════════════════
    SETTINGS — Library & Storage (fully functional)
+
+   Lists every download type across the app in one place:
+   Veda bhāṣya packs, Ramayana Kanda packs, Mahabharata পর্ব
+   packs, and Digital Library books — each with real size and
+   its own delete button, instead of pointing the user back to
+   individual reader pages.
 ══════════════════════════════════════════════════════ */
+
+function sizeLabelGeneric(bytes) {
+  if (!bytes) return "";
+  const kb = bytes / 1024;
+  return kb < 1024 ? `${Math.round(kb)} KB` : `${(kb / 1024).toFixed(1)} MB`;
+}
+
 async function screenLibrarySettings() {
   showBack(true);
   setTitle("Library & Storage");
@@ -1581,25 +1594,35 @@ async function screenLibrarySettings() {
     <div class="section">
       <div class="sectionTitle">💾 Storage Usage</div>
       <div class="settingRow" style="border-bottom:none;">
-        <span>App Storage Used</span>
-        <span id="storageUsed" style="color:var(--gold-bright);">Calculating…</span>
+        <span>মোট ব্যবহৃত স্টোরেজ</span>
+        <span id="storageUsed" style="color:var(--gold-bright);">গণনা হচ্ছে…</span>
       </div>
     </div>
 
     <div class="section">
-      <div class="sectionTitle">📥 Downloaded Bhāṣya Packs</div>
-      <div id="packList"><div class="empty" style="padding:20px;">লোড হচ্ছে…</div></div>
+      <div class="sectionTitle">📜 বেদ ভাষ্য (Veda Bhāṣya Packs)</div>
+      <div id="vedaPackList"><div class="empty" style="padding:20px;">লোড হচ্ছে…</div></div>
     </div>
 
     <div class="section">
-      <div class="sectionTitle">📚 Downloaded Books</div>
+      <div class="sectionTitle">📖 রামায়ণ ভাষ্য (Kanda Packs)</div>
+      <div id="ramPackList"><div class="empty" style="padding:20px;">লোড হচ্ছে…</div></div>
+    </div>
+
+    <div class="section">
+      <div class="sectionTitle">📚 মহাভারত (পর্ব)</div>
+      <div id="mbPackList"><div class="empty" style="padding:20px;">লোড হচ্ছে…</div></div>
+    </div>
+
+    <div class="section">
+      <div class="sectionTitle">📗 ডিজিটাল লাইব্রেরি বই</div>
       <div id="bookList"><div class="empty" style="padding:20px;">লোড হচ্ছে…</div></div>
     </div>
 
     <div class="section">
       <div class="sectionTitle">🧹 Cache Management</div>
       <div style="padding:16px;">
-        <p style="color:var(--ash);font-size:.9rem;margin-bottom:14px;">Clear all downloaded books to free storage. Bhāṣya packs must be deleted individually from each mantra.</p>
+        <p style="color:var(--ash);font-size:.9rem;margin-bottom:14px;">শুধু ডিজিটাল লাইব্রেরির বই এখানে একসঙ্গে মোছা যায়। ভাষ্য/পর্ব প্যাক ওপরের তালিকা থেকে আলাদাভাবে মুছুন।</p>
         <button id="clearCacheBtn" style="background:#b22222;color:white;border:none;padding:12px 20px;border-radius:10px;font-size:.95rem;width:100%;">
           🗑 Clear All Downloaded Books
         </button>
@@ -1607,14 +1630,102 @@ async function screenLibrarySettings() {
       </div>
     </div>`;
 
-  // Storage usage
+  let totalBytes = 0;
+  const bumpStorage = (bytes) => {
+    totalBytes += (bytes || 0);
+    const el = document.getElementById("storageUsed");
+    if (el) el.textContent = sizeLabelGeneric(totalBytes) || "0 KB";
+  };
+
+  // ── Veda bhāṣya packs — collected across all 4 Vedas, deduplicated
+  // (a scholar can appear under more than one Veda) ──
   try {
-    const bytes = await ChaturvedaSettings.getStorageUsage();
-    const kb = bytes / 1024;
-    const display = kb < 1024 ? `${Math.round(kb)} KB` : `${(kb / 1024).toFixed(1)} MB`;
-    document.getElementById("storageUsed").textContent = display;
+    const listEl = document.getElementById("vedaPackList");
+    const vedas = await window.VedaDB.getVedas();
+    const byScholarId = {};
+    for (const veda of vedas) {
+      const scholars = await window.VedaDB.getScholarsForVeda(veda.id);
+      for (const s of scholars) if (!byScholarId[s.id]) byScholarId[s.id] = s;
+    }
+    const downloaded = Object.values(byScholarId).filter(s => s.downloaded);
+    if (!downloaded.length) {
+      listEl.innerHTML = `<div class="empty" style="padding:20px;">কোনো ভাষ্য ডাউনলোড করা নেই।</div>`;
+    } else {
+      listEl.innerHTML = downloaded.map(s => `
+        <div class="settingRow" data-scholar-id="${s.id}">
+          <div><div>${s.name}</div><div style="font-size:.75rem;color:var(--ash);">${sizeLabelGeneric(s.pack_size_bytes)}</div></div>
+          <button class="miniBtn deleteVedaPackBtn" data-id="${s.id}" style="color:#e8756c;border-color:rgba(232,117,108,.3);">Delete</button>
+        </div>`).join("");
+      downloaded.forEach(s => bumpStorage(s.pack_size_bytes));
+      listEl.querySelectorAll(".deleteVedaPackBtn").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          if (!confirm("এই ভাষ্য মুছে ফেলতে চান?")) return;
+          await window.VedaDB.deletePack(parseInt(btn.dataset.id, 10));
+          btn.closest(".settingRow").remove();
+          if (!listEl.querySelector(".settingRow"))
+            listEl.innerHTML = `<div class="empty" style="padding:20px;">কোনো ভাষ্য ডাউনলোড করা নেই।</div>`;
+        });
+      });
+    }
   } catch (e) {
-    document.getElementById("storageUsed").textContent = "Unknown";
+    document.getElementById("vedaPackList").innerHTML = `<div class="empty" style="padding:20px;">লোড করতে সমস্যা।</div>`;
+  }
+
+  // ── Ramayana Kanda commentary packs ──
+  try {
+    const listEl = document.getElementById("ramPackList");
+    const packs = window.RamayanaDB.KANDA_PACKS;
+    const flags = await Promise.all(packs.map(p => window.RamayanaDB.isPackDownloaded(p.id)));
+    const downloaded = packs.filter((_, i) => flags[i]);
+    if (!downloaded.length) {
+      listEl.innerHTML = `<div class="empty" style="padding:20px;">কোনো কাণ্ড ভাষ্য ডাউনলোড করা নেই।</div>`;
+    } else {
+      listEl.innerHTML = downloaded.map(p => `
+        <div class="settingRow" data-pack-id="${p.id}">
+          <div><div>${p.name}</div><div style="font-size:.75rem;color:var(--ash);">${sizeLabelGeneric(p.pack_size_bytes)}</div></div>
+          <button class="miniBtn deleteRamPackBtn" data-id="${p.id}" style="color:#e8756c;border-color:rgba(232,117,108,.3);">Delete</button>
+        </div>`).join("");
+      downloaded.forEach(p => bumpStorage(p.pack_size_bytes));
+      listEl.querySelectorAll(".deleteRamPackBtn").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          if (!confirm("এই কাণ্ড ভাষ্য মুছে ফেলতে চান?")) return;
+          await window.RamayanaDB.deletePack(parseInt(btn.dataset.id, 10));
+          btn.closest(".settingRow").remove();
+          if (!listEl.querySelector(".settingRow"))
+            listEl.innerHTML = `<div class="empty" style="padding:20px;">কোনো কাণ্ড ভাষ্য ডাউনলোড করা নেই।</div>`;
+        });
+      });
+    }
+  } catch (e) {
+    document.getElementById("ramPackList").innerHTML = `<div class="empty" style="padding:20px;">লোড করতে সমস্যা।</div>`;
+  }
+
+  // ── Mahabharata পর্ব packs ──
+  try {
+    const listEl = document.getElementById("mbPackList");
+    const parbas = window.MahabharataDB.PARBAS;
+    const flags = await Promise.all(parbas.map(p => window.MahabharataDB.isPackDownloaded(p.id)));
+    const downloaded = parbas.filter((_, i) => flags[i]);
+    if (!downloaded.length) {
+      listEl.innerHTML = `<div class="empty" style="padding:20px;">কোনো পর্ব ডাউনলোড করা নেই।</div>`;
+    } else {
+      listEl.innerHTML = downloaded.map(p => `
+        <div class="settingRow" data-parba-id="${p.id}">
+          <div>${p.name}</div>
+          <button class="miniBtn deleteMbPackBtn" data-id="${p.id}" style="color:#e8756c;border-color:rgba(232,117,108,.3);">Delete</button>
+        </div>`).join("");
+      listEl.querySelectorAll(".deleteMbPackBtn").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          if (!confirm("এই পর্ব মুছে ফেলতে চান?")) return;
+          await window.MahabharataDB.deletePack(parseInt(btn.dataset.id, 10));
+          btn.closest(".settingRow").remove();
+          if (!listEl.querySelector(".settingRow"))
+            listEl.innerHTML = `<div class="empty" style="padding:20px;">কোনো পর্ব ডাউনলোড করা নেই।</div>`;
+        });
+      });
+    }
+  } catch (e) {
+    document.getElementById("mbPackList").innerHTML = `<div class="empty" style="padding:20px;">লোড করতে সমস্যা।</div>`;
   }
 
   // Downloaded books
@@ -1645,7 +1756,8 @@ async function screenLibrarySettings() {
     document.getElementById("bookList").innerHTML = `<div class="empty" style="padding:20px;">Error loading books.</div>`;
   }
 
-  // Clear all
+  // Clear all (books only — packs are deleted individually above, each
+  // via its own already-existing deletePack, so no new deletion logic)
   document.getElementById("clearCacheBtn").addEventListener("click", async () => {
     if (!confirm("সব ডাউনলোড করা বই মুছে ফেলতে চান?")) return;
     const status = document.getElementById("clearStatus");
@@ -1657,10 +1769,6 @@ async function screenLibrarySettings() {
       status.textContent = "Error: " + e.message;
     }
   });
-
-  // Pack list placeholder
-  document.getElementById("packList").innerHTML =
-    `<div style="padding:16px;color:var(--ash);font-size:.88rem;">Bhāṣya packs are managed from each mantra's page. Open any mantra and use the "এই ভাষ্য মুছুন" button to remove individual packs.</div>`;
 }
 
 /* ══════════════════════════════════════════════════════
@@ -2052,9 +2160,15 @@ async function screenFeedback() {
       document.getElementById("feedbackStatus").textContent = "Please write your feedback first.";
       return;
     }
-    document.getElementById("feedbackStatus").textContent = "✓ Thank you for your valuable feedback!";
-    document.getElementById("feedbackText").value = "";
-    document.getElementById("submitFeedback").disabled = true;
+    const subject = encodeURIComponent("[স্বাধ্যায়] Feedback");
+    const body = encodeURIComponent(text);
+    // No backend exists to receive this silently — this app is static/
+    // client-only. Opening the device's mail app pre-filled is the
+    // honest zero-infrastructure way to make this actually reach
+    // kyronix.support@gmail.com, versus the previous version which
+    // showed a "submitted" message and sent nothing anywhere.
+    window.location.href = `mailto:kyronix.support@gmail.com?subject=${subject}&body=${body}`;
+    document.getElementById("feedbackStatus").textContent = "আপনার মেইল অ্যাপ খোলা হচ্ছে…";
   });
 }
 
@@ -2077,15 +2191,21 @@ async function screenReportBug() {
 
   document.getElementById("submitBug").addEventListener("click", () => {
     const title = document.getElementById("bugTitle").value.trim();
+    const desc = document.getElementById("bugDesc").value.trim();
+    const device = document.getElementById("bugDevice").value.trim();
     if (!title) {
       document.getElementById("bugStatus").textContent = "Please add a problem title.";
       return;
     }
-    document.getElementById("bugStatus").textContent = "✓ Bug report submitted. Thank you!";
-    document.getElementById("bugTitle").value = "";
-    document.getElementById("bugDesc").value = "";
-    document.getElementById("bugDevice").value = "";
-    document.getElementById("submitBug").disabled = true;
+    const subject = encodeURIComponent(`[স্বাধ্যায় Bug] ${title}`);
+    const body = encodeURIComponent(
+      `Problem: ${title}\n\nDescription:\n${desc || "(none provided)"}\n\nDevice info: ${device || "(not provided)"}`
+    );
+    // Same as Send Feedback — no backend to submit to silently, so this
+    // opens the mail app pre-addressed instead of just showing a fake
+    // "submitted" message that went nowhere.
+    window.location.href = `mailto:kyronix.support@gmail.com?subject=${subject}&body=${body}`;
+    document.getElementById("bugStatus").textContent = "আপনার মেইল অ্যাপ খোলা হচ্ছে…";
   });
 }
 
