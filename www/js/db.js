@@ -1247,14 +1247,37 @@ function withAttachLock(fn) {
   return run;
 }
 
+// Best-effort DETACH that survives SQLite's rule against detaching a
+// database while an open transaction on this connection has touched it —
+// which is exactly the state right after a SELECT against a just-attached
+// pack. A plain retry does nothing for that case; forcing the transaction
+// closed first does. Returns true only if the pack is actually detached,
+// so callers can trust tracking stays accurate.
+async function forceDetachPack(sqlite, alias) {
+  try {
+    await sqlite.execute({ database: CORE_DB_NAME, statements: `DETACH DATABASE ${alias};` });
+    return true;
+  } catch (e1) {
+    try { await sqlite.execute({ database: CORE_DB_NAME, statements: `COMMIT;` }); } catch (e2) { /* no transaction open, fine */ }
+    try { await sqlite.execute({ database: CORE_DB_NAME, statements: `ROLLBACK;` }); } catch (e3) { /* nothing to roll back, fine */ }
+    try {
+      await sqlite.execute({ database: CORE_DB_NAME, statements: `DETACH DATABASE ${alias};` });
+      return true;
+    } catch (e4) {
+      console.warn("DETACH still failing after transaction reset:", alias, e4.message || e4);
+      return false;
+    }
+  }
+}
+
 async function evictOldestPackIfNeeded(sqlite) {
   if (attachedPacks.size < MAX_ATTACHED_PACKS) return;
   // Evict the least-recently-used (front of queue)
   const oldest = attachedPacksOrder.shift();
   if (oldest == null) return;
   const alias = packDbName(oldest);
-  try {
-    await sqlite.execute({ database: CORE_DB_NAME, statements: `DETACH DATABASE ${alias};` });
+  const detached = await forceDetachPack(sqlite, alias);
+  if (detached) {
     // Only stop tracking it once we've confirmed it's actually gone —
     // deleting from `attachedPacks` unconditionally here (the previous
     // bug) let failed detaches silently leak: SQLite kept the real
@@ -1262,12 +1285,11 @@ async function evictOldestPackIfNeeded(sqlite) {
     // count crept past SQLite's hard cap of 10 with no visible symptom
     // until it did.
     attachedPacks.delete(oldest);
-  } catch (e) {
+  } else {
     // Genuinely couldn't detach — put it back at the front so eviction
     // retries it next time, rather than losing track of it while it's
     // still actually attached.
     attachedPacksOrder.unshift(oldest);
-    console.warn("Pack eviction DETACH failed, will retry:", alias, e);
   }
 }
 
@@ -1278,8 +1300,7 @@ async function evictOldestPackIfNeeded(sqlite) {
 // session and reset tracking to empty, then let the caller retry once.
 async function emergencyDetachAllPacks(sqlite) {
   for (const alias of everAttachedAliases) {
-    try { await sqlite.execute({ database: CORE_DB_NAME, statements: `DETACH DATABASE ${alias};` }); }
-    catch (e) { /* wasn't actually attached, fine */ }
+    await forceDetachPack(sqlite, alias);
   }
   attachedPacks.clear();
   attachedPacksOrder.length = 0;
@@ -1448,55 +1469,29 @@ async function detachPack(scholarId) {
 
   const alias = packDbName(scholarId);
 
+  if (attachedPacks.has(scholarId)) {
 
+    // This is called on every scholar-tab switch (app.js), immediately
+    // after a SELECT was run against this exact pack — precisely the
+    // condition where plain DETACH DATABASE reliably fails (SQLite
+    // refuses to detach a database an open transaction has already
+    // touched). forceDetachPack resets the transaction state and
+    // retries, instead of the previous plain attempt whose failure was
+    // only console.log'd while tracking was cleared regardless — the
+    // same silent-leak bug fixed in evictOldestPackIfNeeded, just
+    // reached from this separate call path.
+    const detached = await forceDetachPack(sqlite, alias);
 
-  if(attachedPacks.has(scholarId)) {
-
-
-    try {
-
-
-      await sqlite.execute({
-
-
-        database: CORE_DB_NAME,
-
-
-        statements:
-
-          `DETACH DATABASE ${alias};`
-
-
-      });
-
-
+    if (detached) {
+      attachedPacks.delete(scholarId);
+      const _lruIdx = attachedPacksOrder.indexOf(scholarId);
+      if (_lruIdx !== -1) attachedPacksOrder.splice(_lruIdx, 1);
+    } else {
+      // Still attached in reality — leave tracking as-is so eviction
+      // knows to retry it later, rather than losing track of a pack
+      // that's still actually occupying an attach slot.
+      console.warn("detachPack: pack still attached after retry, keeping tracked:", alias);
     }
-
-
-    catch(e) {
-
-
-      console.log(
-
-        "Detach failed or already detached"
-
-      );
-
-
-    }
-
-
-
-    attachedPacks.delete(scholarId);
-
-    // CRITICAL FIX: also purge from the LRU order array.
-    // Without this, the next evictOldestPackIfNeeded() call will shift()
-    // this ghost ID, perform a no-op Set delete + silent DETACH failure,
-    // and never actually free an attach slot — eventually hitting SQLite's
-    // hard "max 10 attached databases" limit (error seen in production).
-    const _lruIdx = attachedPacksOrder.indexOf(scholarId);
-    if (_lruIdx !== -1) attachedPacksOrder.splice(_lruIdx, 1);
-
 
   }
 
