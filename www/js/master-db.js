@@ -79,13 +79,19 @@ async function initializeMasterDatabase() {
 
     // High-concurrency read/write mode — see blueprint blind spot #4
     // (abrupt termination during ingest must not corrupt the DB).
-    // journal_mode=WAL is the one PRAGMA that returns a result row (the
-    // resulting mode) instead of just applying — Android's execSQL()
-    // rejects any statement classified as a query, so this one MUST go
-    // through query(), unlike the plain setters below.
+    //
+    // All three of these go through msQuery(), not msExec(). msExec()
+    // wraps its statements in an implicit BEGIN/COMMIT (that's why
+    // journal_mode=WAL threw "Safety level may not be changed inside a
+    // transaction" once synchronous ran right after it via execute()).
+    // SQLite forbids changing synchronous/journal_mode inside a
+    // transaction outright, and silently no-ops foreign_keys inside one
+    // — so foreign_keys=ON was never actually taking effect either.
+    // msQuery() issues a bare statement with no implicit transaction,
+    // which is what all three of these require.
     await msQuery("PRAGMA journal_mode=WAL;");
-    await msExec("PRAGMA synchronous=NORMAL;");
-    await msExec("PRAGMA foreign_keys=ON;");
+    await msQuery("PRAGMA synchronous=NORMAL;");
+    await msQuery("PRAGMA foreign_keys=ON;");
 
     await msExec(`
       CREATE TABLE IF NOT EXISTS installed_packages (
