@@ -305,7 +305,7 @@ async function mergeVedaPack(scholarId, title, tempDbPath) {
       await sqlite.execute({ database: MASTER_DB_NAME, statements: `DELETE FROM veda_bhashya_contents WHERE scholar_id=${Number(scholarId)};` });
       await sqlite.execute({
         database: MASTER_DB_NAME,
-        statements: `INSERT INTO veda_bhashya_contents (scholar_id, mantra_id, field_key, value)
+        statements: `INSERT OR REPLACE INTO veda_bhashya_contents (scholar_id, mantra_id, field_key, value)
                      SELECT ${Number(scholarId)}, mantra_id, field_key, value FROM ${alias}.bhashyas;`,
       });
     });
@@ -345,7 +345,7 @@ async function mergeRamayanaKandaPack(packId, title, tempDbPath) {
       await sqlite.execute({ database: MASTER_DB_NAME, statements: `DELETE FROM ramayana_kanda_bhashya_contents WHERE scholar_id=${Number(packId)};` });
       await sqlite.execute({
         database: MASTER_DB_NAME,
-        statements: `INSERT INTO ramayana_kanda_bhashya_contents (scholar_id, shloka_id, field_key, value)
+        statements: `INSERT OR REPLACE INTO ramayana_kanda_bhashya_contents (scholar_id, shloka_id, field_key, value)
                      SELECT ${Number(packId)}, shloka_id, field_key, value FROM ${alias}.ramayana_bhashyas;`,
       });
     });
@@ -410,17 +410,17 @@ async function mergeMahabharataPack(parbaId, title, tempDbPath) {
 
       await sqlite.execute({
         database: MASTER_DB_NAME,
-        statements: `INSERT INTO mahabharata_adhyayas (parba_id, id, chapter_no, title)
+        statements: `INSERT OR REPLACE INTO mahabharata_adhyayas (parba_id, id, chapter_no, title)
                      SELECT ${Number(parbaId)}, id, chapter_no, title FROM ${alias}.adhyayas;`,
       });
       await sqlite.execute({
         database: MASTER_DB_NAME,
-        statements: `INSERT INTO mahabharata_upakhyanas (parba_id, id, adhyay_id, seq, upakhyan_key, bishoy, content)
+        statements: `INSERT OR REPLACE INTO mahabharata_upakhyanas (parba_id, id, adhyay_id, seq, upakhyan_key, bishoy, content)
                      SELECT ${Number(parbaId)}, id, adhyay_id, seq, upakhyan_key, bishoy, content FROM ${alias}.upakhyanas;`,
       });
       await sqlite.execute({
         database: MASTER_DB_NAME,
-        statements: `INSERT INTO mahabharata_upakhyanas_fts (parba_id, upakhyan_id, adhyay_id, bishoy, content)
+        statements: `INSERT OR REPLACE INTO mahabharata_upakhyanas_fts (parba_id, upakhyan_id, adhyay_id, bishoy, content)
                      SELECT ${Number(parbaId)}, id, adhyay_id, bishoy, content FROM ${alias}.upakhyanas;`,
       });
     });
