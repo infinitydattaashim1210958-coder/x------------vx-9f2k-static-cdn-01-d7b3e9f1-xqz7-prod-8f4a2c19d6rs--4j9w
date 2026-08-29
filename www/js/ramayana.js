@@ -83,17 +83,40 @@ const MAX_RAM_ATTACHED = 9;
 const ramAttachedPacks  = new Set();
 const ramAttachedOrder  = [];
 
+// Same fix as db.js's forceDetachPack: a plain DETACH reliably fails
+// right after a SELECT against that pack (SQLite refuses to detach a
+// database an open transaction has touched), so this resets the
+// transaction state and retries before giving up. Untracking a pack
+// that's still actually attached (the previous bug here) is what let
+// real attachments creep past SQLite's hard 10-per-connection ceiling
+// while our own count looked fine.
+async function ramForceDetach(sqlite, alias) {
+  try {
+    await sqlite.execute({ database: RAM_CORE_DB, statements: `DETACH DATABASE ${alias};` });
+    return true;
+  } catch (e1) {
+    try { await sqlite.execute({ database: RAM_CORE_DB, statements: `COMMIT;` }); } catch (e2) { /* fine */ }
+    try { await sqlite.execute({ database: RAM_CORE_DB, statements: `ROLLBACK;` }); } catch (e3) { /* fine */ }
+    try {
+      await sqlite.execute({ database: RAM_CORE_DB, statements: `DETACH DATABASE ${alias};` });
+      return true;
+    } catch (e4) {
+      console.warn("Ramayana pack DETACH still failing after reset:", alias, e4.message || e4);
+      return false;
+    }
+  }
+}
+
 async function ramEvictOldestIfNeeded(sqlite) {
   if (ramAttachedPacks.size < MAX_RAM_ATTACHED) return;
   const oldest = ramAttachedOrder.shift();
   if (oldest == null) return;
-  ramAttachedPacks.delete(oldest);
-  try {
-    await sqlite.execute({
-      database:   RAM_CORE_DB,
-      statements: `DETACH DATABASE ram_pack_${oldest};`,
-    });
-  } catch (e) { /* already gone */ }
+  const detached = await ramForceDetach(sqlite, `ram_pack_${oldest}`);
+  if (detached) {
+    ramAttachedPacks.delete(oldest);
+  } else {
+    ramAttachedOrder.unshift(oldest); // retry it next time, it's still really attached
+  }
 }
 
 function ramMarkPackUsed(packId) {
@@ -331,6 +354,8 @@ async function ramDownloadPack(packId, packFile, onProgress) {
   return true;
 }
 
+const ramEverAttachedAliases = new Set();
+
 async function ramAttachPack(packId) {
   if (ramAttachedPacks.has(packId)) { ramMarkPackUsed(packId); return; }
 
@@ -350,13 +375,30 @@ async function ramAttachPack(packId) {
     await sqlite.execute({ database: RAM_CORE_DB, statements: `DETACH DATABASE ${alias};` });
   } catch (e) { /* not attached */ }
 
+  const doAttach = () => sqlite.execute({ database: RAM_CORE_DB, statements: `ATTACH DATABASE '${dbPath}' AS ${alias};` });
+
   try {
-    await sqlite.execute({ database: RAM_CORE_DB, statements: `ATTACH DATABASE '${dbPath}' AS ${alias};` });
+    await doAttach();
   } catch (e) {
     const msg = (e?.message || String(e));
-    if (!msg.includes("already in use")) throw e;
+    if (msg.includes("already in use")) {
+      // fine
+    } else if (msg.toLowerCase().includes("too many attached databases")) {
+      // Our tracking believed there was room; reality disagreed (most
+      // likely from an earlier eviction whose DETACH silently failed
+      // before this fix). Nuclear reset, then retry once.
+      for (const a of ramEverAttachedAliases) {
+        await ramForceDetach(sqlite, a);
+      }
+      ramAttachedPacks.clear();
+      ramAttachedOrder.length = 0;
+      await doAttach();
+    } else {
+      throw e;
+    }
   }
 
+  ramEverAttachedAliases.add(alias);
   ramAttachedPacks.add(packId);
   ramMarkPackUsed(packId);
 }
@@ -365,15 +407,14 @@ async function ramDetachPack(packId) {
   const sqlite = ramSqlite();
   if (!sqlite) return;
   if (!ramAttachedPacks.has(packId)) return;
-  try {
-    await sqlite.execute({
-      database:   RAM_CORE_DB,
-      statements: `DETACH DATABASE ${ramPackAlias(packId)};`,
-    });
-  } catch (e) { /* ignore */ }
-  ramAttachedPacks.delete(packId);
-  const idx = ramAttachedOrder.indexOf(packId);
-  if (idx !== -1) ramAttachedOrder.splice(idx, 1);
+  const detached = await ramForceDetach(sqlite, ramPackAlias(packId));
+  if (detached) {
+    ramAttachedPacks.delete(packId);
+    const idx = ramAttachedOrder.indexOf(packId);
+    if (idx !== -1) ramAttachedOrder.splice(idx, 1);
+  } else {
+    console.warn("ramDetachPack: still attached after retry, keeping tracked:", packId);
+  }
 }
 
 async function ramDeletePack(packId) {

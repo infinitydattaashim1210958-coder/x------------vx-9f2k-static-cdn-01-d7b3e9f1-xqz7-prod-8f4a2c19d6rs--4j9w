@@ -218,28 +218,58 @@ function mbMarkUsed(parbaId) {
   mbOpenOrder.push(parbaId);
 }
 
+// Same fix as db.js/ramayana.js: DETACH reliably fails right after a
+// SELECT against that pack (SQLite refuses to detach a database an open
+// transaction has touched), so reset the transaction state and retry
+// before giving up. Untracking on an unconfirmed DETACH (the previous
+// bug here) let real attachments creep past SQLite's hard 10-per-
+// connection ceiling while mbOpenConns.size looked capped at 3.
+async function mbForceDetach(sqlite, alias) {
+  try {
+    await sqlite.execute({ database: MB_HUB_DB, statements: `DETACH DATABASE ${alias};` });
+    return true;
+  } catch (e1) {
+    try { await sqlite.execute({ database: MB_HUB_DB, statements: `COMMIT;` }); } catch (e2) { /* fine */ }
+    try { await sqlite.execute({ database: MB_HUB_DB, statements: `ROLLBACK;` }); } catch (e3) { /* fine */ }
+    try {
+      await sqlite.execute({ database: MB_HUB_DB, statements: `DETACH DATABASE ${alias};` });
+      return true;
+    } catch (e4) {
+      console.warn("Mahabharata pack DETACH still failing after reset:", alias, e4.message || e4);
+      return false;
+    }
+  }
+}
+
 async function mbCloseConnection(parbaId) {
   const sqlite = mbSqlite();
   if (!sqlite) return;
   if (!mbOpenConns.has(parbaId)) return;
-  try {
-    await sqlite.execute({ database: MB_HUB_DB, statements: `DETACH DATABASE ${mbAlias(parbaId)};` });
-  } catch (e) { /* ignore */ }
-  mbOpenConns.delete(parbaId);
-  const idx = mbOpenOrder.indexOf(parbaId);
-  if (idx !== -1) mbOpenOrder.splice(idx, 1);
+  const detached = await mbForceDetach(sqlite, mbAlias(parbaId));
+  if (detached) {
+    mbOpenConns.delete(parbaId);
+    const idx = mbOpenOrder.indexOf(parbaId);
+    if (idx !== -1) mbOpenOrder.splice(idx, 1);
+  } else {
+    console.warn("mbCloseConnection: still attached after retry, keeping tracked:", parbaId);
+  }
 }
 
 async function mbEvictIfNeeded() {
   if (mbOpenConns.size < MB_MAX_OPEN) return;
   const oldest = mbOpenOrder.shift();
   if (oldest == null) return;
-  mbOpenConns.delete(oldest);
   const sqlite = mbSqlite();
   if (!sqlite) return;
-  try { await sqlite.execute({ database: MB_HUB_DB, statements: `DETACH DATABASE ${mbAlias(oldest)};` }); }
-  catch (e) { /* already gone */ }
+  const detached = await mbForceDetach(sqlite, mbAlias(oldest));
+  if (detached) {
+    mbOpenConns.delete(oldest);
+  } else {
+    mbOpenOrder.unshift(oldest); // retry it next time, it's still really attached
+  }
 }
+
+const mbEverAttachedAliases = new Set();
 
 async function mbEnsureOpen(parbaId) {
   await mbEnsureHub();
@@ -270,13 +300,30 @@ async function mbEnsureOpen(parbaId) {
     await sqlite.execute({ database: MB_HUB_DB, statements: `DETACH DATABASE ${alias};` });
   } catch (e) { /* not attached yet, fine */ }
 
+  const doAttach = () => sqlite.execute({ database: MB_HUB_DB, statements: `ATTACH DATABASE '${dbPath}' AS ${alias};` });
+
   try {
-    await sqlite.execute({ database: MB_HUB_DB, statements: `ATTACH DATABASE '${dbPath}' AS ${alias};` });
+    await doAttach();
   } catch (e) {
     const msg = (e?.message || String(e));
-    if (!msg.includes("already in use")) throw e;
+    if (msg.includes("already in use")) {
+      // fine
+    } else if (msg.toLowerCase().includes("too many attached databases")) {
+      // Tracking believed there was room; reality disagreed (most likely
+      // an earlier eviction whose DETACH silently failed before this
+      // fix). Nuclear reset, then retry once.
+      for (const a of mbEverAttachedAliases) {
+        await mbForceDetach(sqlite, a);
+      }
+      mbOpenConns.clear();
+      mbOpenOrder.length = 0;
+      await doAttach();
+    } else {
+      throw e;
+    }
   }
 
+  mbEverAttachedAliases.add(alias);
   mbOpenConns.add(parbaId);
   mbMarkUsed(parbaId);
 }
