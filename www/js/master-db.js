@@ -244,13 +244,16 @@ async function withAttachedSource(dbPath, fn) {
     await doAttach();
   }
 
+  // No manual BEGIN TRANSACTION here: execute() already wraps whatever
+  // statement it's given in its own atomic call, and issuing a literal
+  // "BEGIN TRANSACTION;" while none is open makes execute() try to
+  // nest a transaction inside the one it auto-opens for that call —
+  // "cannot start a transaction within a transaction". fn(alias) runs
+  // its DELETE-then-INSERT as separate execute() calls, each already
+  // atomic on its own; the merge is idempotent (safe to re-run from
+  // scratch), so cross-statement atomicity here was never required.
   try {
-    await sqlite.execute({ database: MASTER_DB_NAME, statements: "BEGIN TRANSACTION;" });
     await fn(alias);
-    await sqlite.execute({ database: MASTER_DB_NAME, statements: "COMMIT;" });
-  } catch (err) {
-    try { await sqlite.execute({ database: MASTER_DB_NAME, statements: "ROLLBACK;" }); } catch (e2) { /* nothing to roll back */ }
-    throw err;
   } finally {
     const detached = await forceDetachMergeSrc(sqlite, alias);
     if (!detached) {
