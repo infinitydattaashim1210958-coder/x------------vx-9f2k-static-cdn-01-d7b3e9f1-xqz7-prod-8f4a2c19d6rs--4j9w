@@ -59,6 +59,85 @@ function el(html) {
 }
 
 /* ══════════════════════════════════════════════════════
+   "LIVING UI" HELPERS — v7.2
+   Small, self-contained, called from a few hook points
+   (router, showBookmarkFab, addChapterBookmarkButtons)
+   rather than threaded through every screen function.
+══════════════════════════════════════════════════════ */
+
+// 3. Ripple feedback on tappable rows — single delegated listener covers
+// every screen since new .listItem/.mantraItem/etc DOM is created fresh
+// per render; no per-screen wiring needed.
+document.addEventListener("pointerdown", (e) => {
+  const target = e.target.closest(
+    ".listItem, .numChip, .rangeItem, .mantraItem, .bookCard, .item, .tabBtn, .langChip"
+  );
+  if (!target) return;
+  const rect = target.getBoundingClientRect();
+  target.style.setProperty("--x", `${e.clientX - rect.left}px`);
+  target.style.setProperty("--y", `${e.clientY - rect.top}px`);
+  target.classList.remove("ripple");
+  void target.offsetWidth; // restart animation
+  target.classList.add("ripple");
+});
+
+// 7. Bookmark burst — called wherever a bookmark 🔖 is actually saved
+// (the FAB, and each per-chapter button in the library reader code).
+function animateBookmarkBurst(button) {
+  if (!button) return;
+  button.classList.remove("bookmarkPop");
+  void button.offsetWidth;
+  button.classList.add("bookmarkPop");
+}
+
+// 8. Reading progress bar — one persistent element, shown/hidden together
+// with the bookmark FAB (which already marks exactly which screens are
+// "reading screens": mantra/shloka/adhyay/library-book detail views).
+let _readingProgressEl = null;
+function _readingProgressBar() {
+  if (_readingProgressEl) return _readingProgressEl;
+  _readingProgressEl = document.createElement("div");
+  _readingProgressEl.id = "readingProgress";
+  document.body.appendChild(_readingProgressEl);
+  window.addEventListener("scroll", () => {
+    if (!_readingProgressEl.classList.contains("visible")) return;
+    const doc = document.documentElement;
+    const max = doc.scrollHeight - window.innerHeight;
+    const pct = max > 0 ? (window.scrollY / max) * 100 : 0;
+    _readingProgressEl.style.width = `${Math.max(0, Math.min(100, pct))}%`;
+  }, { passive: true });
+  return _readingProgressEl;
+}
+function showReadingProgress() { _readingProgressBar().classList.add("visible"); }
+function hideReadingProgress() {
+  if (_readingProgressEl) _readingProgressEl.classList.remove("visible");
+}
+
+// 10. Swipe navigation — left/right swipe triggers the same prev/next
+// mantra/shloka/adhyay buttons every detail screen already renders
+// (`.mantraNav .navBtn:first-child` = prev, `:last-child` = next).
+// Ignored when the swipe is more vertical than horizontal (a normal
+// scroll), and harmless no-op on screens with no .mantraNav at all.
+(function initSwipeNav() {
+  let x0 = 0, y0 = 0;
+  document.addEventListener("touchstart", (e) => {
+    x0 = e.changedTouches[0].screenX;
+    y0 = e.changedTouches[0].screenY;
+  }, { passive: true });
+  document.addEventListener("touchend", (e) => {
+    const dx = e.changedTouches[0].screenX - x0;
+    const dy = e.changedTouches[0].screenY - y0;
+    if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy)) return;
+    const nav = root.querySelector(".mantraNav");
+    if (!nav) return;
+    const prevBtn = nav.querySelector(".navBtn:first-child");
+    const nextBtn = nav.querySelector(".navBtn:last-child");
+    const btn = dx < 0 ? nextBtn : prevBtn;
+    if (btn && !btn.classList.contains("disabled")) btn.click();
+  }, { passive: true });
+})();
+
+/* ══════════════════════════════════════════════════════
    BOOKMARKS — universal add/open, works for any reader
    (db.js mantras, ramayana shlokas, mahabharata adhyays,
    html_book library) because it stores the app's own hash
@@ -83,9 +162,11 @@ function showBookmarkFab(meta) {
       scrollPercent,
     });
     addBookmarkFab.textContent = "✅";
+    animateBookmarkBurst(addBookmarkFab);
     setTimeout(() => { if (addBookmarkFab) addBookmarkFab.textContent = "🔖"; }, 900);
   };
   startReadingPositionTracking(meta);
+  showReadingProgress();
 }
 
 function hideBookmarkFab() {
@@ -93,6 +174,7 @@ function hideBookmarkFab() {
   addBookmarkFab.style.display = "none";
   addBookmarkFab.onclick = null;
   stopReadingPositionTracking();
+  hideReadingProgress();
 }
 
 /* ── Continue Reading / Last Position ─────────────────────────────────
@@ -1308,6 +1390,7 @@ function addNativeChapterBookmarkButtons(bookId, bookTitle) {
         scrollPercent: pct,
       });
       btn.textContent = "✅";
+      animateBookmarkBurst(btn);
       setTimeout(() => { btn.textContent = "🔖"; }, 900);
     });
     h.appendChild(btn);
@@ -2490,7 +2573,7 @@ async function screenAbout() {
 /* ══════════════════════════════════════════════════════
    ROUTER
 ══════════════════════════════════════════════════════ */
-async function router() {
+async function routeDispatch() {
   document.querySelectorAll(".pdfRenderContainer").forEach(el => {
     try { el.parentNode && el.parentNode.removeChild(el); } catch (e) { /* ignore */ }
   });
@@ -2559,6 +2642,17 @@ async function router() {
   }
 }
 
+// Page transition: every navigation replays a short fade+slide on #app.
+// Wrapping routeDispatch() (instead of touching every individual
+// screenXxx() function) keeps this a single hook point — new screens
+// automatically get it too.
+async function router() {
+  await routeDispatch();
+  root.classList.remove("pageEnter");
+  void root.offsetWidth; // force reflow so the animation restarts every time
+  root.classList.add("pageEnter");
+}
+
 window.addEventListener("hashchange", router);
 backBtn.addEventListener("click", () => history.length ? window.history.back() : (location.hash = "#/"));
 searchBtn.addEventListener("click", () => (location.hash = "#/search"));
@@ -2568,6 +2662,9 @@ settingsBtn.addEventListener("click", () => (location.hash = "#/settings"));
 async function boot() {
   root.innerHTML = `
     <div class="loadingFull">
+      <div class="sacredParticles" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span><span></span>
+      </div>
       <div class="omBig">ओ३म्</div>
       <div class="loadingText">ডাটাবেস লোড হচ্ছে…</div>
       <div class="loadingVersion">${APP_BUILD_VERSION}</div>
