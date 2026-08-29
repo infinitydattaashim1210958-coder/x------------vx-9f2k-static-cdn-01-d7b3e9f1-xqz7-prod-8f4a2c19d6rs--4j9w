@@ -105,12 +105,10 @@ function mbBlobToBase64(blob) {
 /* ── Download / delete pack ─────────────────────────────────────────── */
 
 async function mbIsPackDownloaded(parbaId) {
+  // Post-Strategy-3: "downloaded" means "merged into the master DB" — see
+  // the matching note in db.js's isPackDownloaded.
   try {
-    const fs = mbFs();
-    const dir = mbDir();
-    if (!fs || !dir) return false;
-    await fs.stat({ path: mbPackFileName(parbaId), directory: dir });
-    return true;
+    return await window.SwadhyayMasterDB.isMahabharataInstalled(parbaId);
   } catch (e) {
     return false;
   }
@@ -148,12 +146,29 @@ async function mbDownloadPack(parbaId, onProgress) {
     recursive: true,
   });
 
+  if (onProgress) onProgress("একত্রিত হচ্ছে…");
+
+  // Strategy 3 (master database) — merge into swadhyay_master.db and drop
+  // the standalone pack file. Reading no longer ATTACHes per-পর্ব files
+  // (that's what made an 11th-পর্ব read crash before); see master-db.js.
+  const uri = await fs.getUri({ path: mbPackFileName(parbaId), directory: dir });
+  const nativePath = uri.uri.startsWith("file://") ? uri.uri.replace("file://", "") : uri.uri;
+  await window.SwadhyayMasterDB.mergeMahabharataPack(parbaId, parba.name, nativePath);
+  try {
+    await fs.deleteFile({ path: mbPackFileName(parbaId), directory: dir });
+  } catch (e) { /* non-fatal */ }
+
   if (onProgress) onProgress("সম্পন্ন!");
   return true;
 }
 
 async function mbDeletePack(parbaId) {
   await mbCloseConnection(parbaId);
+  try {
+    await window.SwadhyayMasterDB.removeMahabharataPack(parbaId);
+  } catch (e) {
+    console.log("Master DB pack removal:", e.message || e);
+  }
   try {
     const fs = mbFs();
     const dir = mbDir();
@@ -335,60 +350,37 @@ async function mbQuery(parbaId, sql, params = []) {
   return mbRowsOf(result);
 }
 
-/* ── Content queries (table names qualified with the pack's attach alias) ── */
+/* ── Content queries ────────────────────────────────────────────────────
+ * Strategy 3: no ATTACH, no hub connection, no per-পর্ব eviction — every
+ * পর্ব's data already lives in swadhyay_master.db (merged at download
+ * time). This is what makes it possible to read all 18 পর্ব back-to-back
+ * without ever approaching SQLite's attached-database ceiling.
+ * The mbEnsureHub/mbEvictIfNeeded/mbQuery machinery above is left in
+ * place but is no longer called from here — nothing else in the app
+ * calls it either, so it's inert. Safe to delete in a later cleanup pass
+ * once you're confident nothing external depends on it.
+ * ──────────────────────────────────────────────────────────────────── */
 
 async function mbGetAdhyayasForParba(parbaId) {
-  const a = mbAlias(parbaId);
-  return mbQuery(parbaId, `SELECT * FROM ${a}.adhyayas ORDER BY chapter_no`);
+  return window.SwadhyayMasterDB.getMahabharataAdhyayas(parbaId);
 }
 
 async function mbGetAdhyayById(parbaId, adhyayId) {
-  const a = mbAlias(parbaId);
-  const rows = await mbQuery(parbaId, `SELECT * FROM ${a}.adhyayas WHERE id=?`, [adhyayId]);
-  return rows[0] || null;
+  return window.SwadhyayMasterDB.getMahabharataAdhyay(parbaId, adhyayId);
 }
 
 async function mbGetUpakhyanasForAdhyay(parbaId, adhyayId) {
-  const a = mbAlias(parbaId);
-  return mbQuery(parbaId, `SELECT * FROM ${a}.upakhyanas WHERE adhyay_id=? ORDER BY seq`, [adhyayId]);
+  return window.SwadhyayMasterDB.getMahabharataUpakhyanas(parbaId, adhyayId);
 }
 
 async function mbGetAdjacentAdhyayas(parbaId, adhyayId) {
-  const a = mbAlias(parbaId);
-  const prev = await mbQuery(parbaId, `SELECT id FROM ${a}.adhyayas WHERE id<? ORDER BY id DESC LIMIT 1`, [adhyayId]);
-  const next = await mbQuery(parbaId, `SELECT id FROM ${a}.adhyayas WHERE id>? ORDER BY id ASC LIMIT 1`, [adhyayId]);
-  return {
-    prev: prev.length ? prev[0].id : null,
-    next: next.length ? next[0].id : null,
-  };
+  return window.SwadhyayMasterDB.getMahabharataAdjacentAdhyayas(parbaId, adhyayId);
 }
 
 /* ── Search (within one downloaded পর্ব) ─────────────────────────────── */
 
 async function mbSearchInParba(parbaId, term, limit = 50) {
-  const a = mbAlias(parbaId);
-  const escaped = '"' + term.trim().replace(/"/g, '""') + '"';
-  try {
-    return mbQuery(
-      parbaId,
-      `SELECT u.id, u.adhyay_id, u.bishoy, a2.title AS adhyay_title
-       FROM ${a}.upakhyanas_fts f
-       JOIN ${a}.upakhyanas u ON u.id = f.rowid
-       JOIN ${a}.adhyayas a2 ON a2.id = u.adhyay_id
-       WHERE ${a}.upakhyanas_fts MATCH ?
-       LIMIT ?`,
-      [escaped, limit]
-    );
-  } catch (e) {
-    const esc = "%" + term.trim().replace(/[%_]/g, "\\$&") + "%";
-    return mbQuery(
-      parbaId,
-      `SELECT u.id, u.adhyay_id, u.bishoy, a2.title AS adhyay_title
-       FROM ${a}.upakhyanas u JOIN ${a}.adhyayas a2 ON a2.id = u.adhyay_id
-       WHERE u.content LIKE ? OR u.bishoy LIKE ? LIMIT ?`,
-      [esc, esc, limit]
-    );
-  }
+  return window.SwadhyayMasterDB.searchMahabharataParva(parbaId, term, limit);
 }
 
 /* ── Public API ─────────────────────────────────────────────────────── */

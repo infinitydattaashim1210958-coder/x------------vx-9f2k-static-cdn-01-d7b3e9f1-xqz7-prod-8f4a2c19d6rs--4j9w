@@ -2336,6 +2336,11 @@ async function boot() {
     </div>`;
   await ChaturvedaSettings.apply();
   try {
+    // Master DB (Strategy 3) — must exist before any pack download/read
+    // path touches it. Cheap: just opens swadhyay_master.db and runs
+    // idempotent CREATE TABLE IF NOT EXISTS statements.
+    await window.SwadhyayMasterDB.initializeMasterDatabase();
+
     // VedaDB must always succeed — it is bundled.
     await window.VedaDB.initDB();
 
@@ -2348,6 +2353,16 @@ async function boot() {
       if (!e.needsDownload) throw e; // re-throw genuine errors only
       // DB not downloaded yet — screenRamayana() will show the download UI
     }
+
+    // One-time migration for installs updating from the old per-file
+    // ATTACH architecture: merges any pack still sitting on disk from
+    // before this update into swadhyay_master.db. No-op (fast) once
+    // everything's migrated. Runs in the background — never blocks boot,
+    // and a failure here must not stop the app from opening.
+    window.SwadhyayMasterDB.migrateAllLegacyPacks().catch(err => {
+      console.warn("Legacy pack migration did not complete (will retry next launch):", err);
+    });
+
     router();
   } catch (e) {
     const stackInfo = (e && e.stack) ? e.stack.replace(/\n/g, "<br>") : "no stack";

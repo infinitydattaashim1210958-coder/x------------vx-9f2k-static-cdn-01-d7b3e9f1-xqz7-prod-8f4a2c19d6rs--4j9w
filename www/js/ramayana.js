@@ -309,12 +309,10 @@ function ramPackFileName(packId) {
 }
 
 async function ramIsPackDownloaded(packId) {
+  // Post-Strategy-3: "downloaded" means "merged into the master DB" — see
+  // the matching note in db.js's isPackDownloaded.
   try {
-    const fs  = ramFs();
-    const dir = ramDir();
-    if (!fs || !dir) return false;
-    await fs.stat({ path: ramPackFileName(packId), directory: dir });
-    return true;
+    return await window.SwadhyayMasterDB.isRamayanaKandaInstalled(packId);
   } catch (e) {
     return false;
   }
@@ -351,7 +349,24 @@ async function ramDownloadPack(packId, packFile, onProgress) {
     directory: dir,
     recursive: true,
   });
+
+  if (onProgress) onProgress("একত্রিত হচ্ছে…");
+
+  // Strategy 3 (master database) — merge into swadhyay_master.db and drop
+  // the standalone pack file. See master-db.js.
+  const kanda = RAM_KANDA_PACKS.find(p => p.id === packId);
+  const nativePath = await getTempFileNativePath(fs, ramPackFileName(packId), dir);
+  await window.SwadhyayMasterDB.mergeRamayanaKandaPack(packId, kanda ? kanda.name : null, nativePath);
+  try {
+    await fs.deleteFile({ path: ramPackFileName(packId), directory: dir });
+  } catch (e) { /* non-fatal */ }
+
   return true;
+}
+
+async function getTempFileNativePath(fsPluginRef, path, directory) {
+  const uri = await fsPluginRef.getUri({ path, directory });
+  return uri.uri.startsWith("file://") ? uri.uri.replace("file://", "") : uri.uri;
 }
 
 const ramEverAttachedAliases = new Set();
@@ -420,6 +435,11 @@ async function ramDetachPack(packId) {
 async function ramDeletePack(packId) {
   await ramDetachPack(packId);
   try {
+    await window.SwadhyayMasterDB.removeRamayanaKandaPack(packId);
+  } catch (e) {
+    console.log("Master DB pack removal:", e.message || e);
+  }
+  try {
     const fs  = ramFs();
     const dir = ramDir();
     if (fs && dir) await fs.deleteFile({ path: ramPackFileName(packId), directory: dir });
@@ -429,15 +449,9 @@ async function ramDeletePack(packId) {
 /* ── Bhashya query (from pack) ─────────────────────────────────────── */
 
 async function ramGetBhashyaForShloka(packId, shlokaId) {
-  await ramAttachPack(packId);
-  const alias   = ramPackAlias(packId);
-  const sqlite  = ramSqlite();
-  const result  = await sqlite.query({
-    database:  RAM_CORE_DB,
-    statement: `SELECT field_key, value FROM ${alias}.ramayana_bhashyas WHERE shloka_id=? ORDER BY id`,
-    values:    [shlokaId],
-  });
-  return ramRowsOf(result);  // [{field_key, value}, ...]
+  // Strategy 3: no ATTACH — data lives in swadhyay_master.db already
+  // (merged at download time by ramDownloadPack / migrateAllLegacyPacks).
+  return window.SwadhyayMasterDB.getRamayanaKandaBhashya(packId, shlokaId);
 }
 
 /* ── Search ─────────────────────────────────────────────────────────── */
@@ -464,37 +478,33 @@ async function ramSearchSanskrit(term, limit = 50) {
 }
 
 async function ramSearchBhashya(packId, term, limit = 50) {
-  await ramAttachPack(packId);
-  const alias   = ramPackAlias(packId);
-  const sqlite  = ramSqlite();
-  const escaped = '"' + term.trim().replace(/"/g, '""') + '"';
-  try {
-    const result = await sqlite.query({
-      database:  RAM_CORE_DB,
-      statement: `SELECT b.shloka_id, b.field_key, b.value,
-                         s.kanda_id, s.sarga_id
-                  FROM ${alias}.rb_fts f
-                  JOIN ${alias}.ramayana_bhashyas b ON b.id = f.rowid
-                  JOIN shlokas s ON s.id = b.shloka_id
-                  WHERE ${alias}.rb_fts MATCH ?
-                  LIMIT ?`,
-      values: [escaped, limit],
-    });
-    return ramRowsOf(result);
-  } catch (e) {
-    const esc = "%" + term.trim().replace(/[%_]/g, "\\$&") + "%";
-    const result = await sqlite.query({
-      database:  RAM_CORE_DB,
-      statement: `SELECT b.shloka_id, b.field_key, b.value,
-                         s.kanda_id, s.sarga_id
-                  FROM ${alias}.ramayana_bhashyas b
-                  JOIN shlokas s ON s.id = b.shloka_id
-                  WHERE b.value LIKE ?
-                  LIMIT ?`,
-      values: [esc, limit],
-    });
-    return ramRowsOf(result);
-  }
+  // Strategy 3: FTS lives in swadhyay_master.db now, so the match query
+  // no longer touches ramayana_core.db at all. kanda_id/sarga_id aren't
+  // stored on the master row (that would need master.db to join across
+  // two separate SQLite files at merge time), so we resolve them here
+  // with one small follow-up query against the already-open core DB
+  // instead — cheaper than keeping a second cross-db ATTACH alive.
+  const matches = await window.SwadhyayMasterDB.searchRamayanaKandaBhashya(packId, term, limit);
+  if (!matches.length) return [];
+
+  const shlokaIds = [...new Set(matches.map(m => m.shloka_id))];
+  const placeholders = shlokaIds.map(() => "?").join(",");
+  const shlokaRows = await ramQuery(
+    `SELECT id, kanda_id, sarga_id FROM shlokas WHERE id IN (${placeholders})`,
+    shlokaIds
+  );
+  const shlokaById = new Map(shlokaRows.map(s => [s.id, s]));
+
+  return matches.map(m => {
+    const s = shlokaById.get(m.shloka_id);
+    return {
+      shloka_id: m.shloka_id,
+      field_key: m.field_key,
+      value:     m.value,
+      kanda_id:  s ? s.kanda_id : null,
+      sarga_id:  s ? s.sarga_id : null,
+    };
+  });
 }
 
 /* ── Public API ─────────────────────────────────────────────────────── */

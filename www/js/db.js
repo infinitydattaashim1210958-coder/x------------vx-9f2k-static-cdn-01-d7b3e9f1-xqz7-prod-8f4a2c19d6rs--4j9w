@@ -896,40 +896,18 @@ function packFileName(scholarId) {
 
 async function isPackDownloaded(scholarId) {
 
-
+  // Post-Strategy-3: "downloaded" means "merged into the master DB", not
+  // "file present on disk" — the standalone pack file is deleted right
+  // after a successful merge (see downloadPack). This also transparently
+  // covers packs a user downloaded before this migration: those get
+  // merged in by SwadhyayMasterDB.migrateAllLegacyPacks() on first boot
+  // after the update, at which point this check starts returning true
+  // for them too.
   try {
-
-    const fs = fsPlugin();
-    const dir = directoryData();
-
-    if (!fs || !dir) {
-      return false;
-    }
-
-    await fs.stat({
-
-      path: packFileName(scholarId),
-
-      directory: dir
-
-
-    });
-
-
-
-    return true;
-
-
-  }
-
-  catch(e) {
-
-
+    return await window.SwadhyayMasterDB.isVedaInstalled(scholarId);
+  } catch (e) {
     return false;
-
-
   }
-
 
 }
 
@@ -1122,6 +1100,18 @@ async function downloadPack(
     recursive: true
 });
 
+  if (onProgress) onProgress("একত্রিত হচ্ছে…");
+
+  // Strategy 3 (master database): merge the freshly downloaded pack into
+  // swadhyay_master.db immediately, then delete the standalone file. Reads
+  // (getBhashyaForMantraFromPack) hit the master DB only from here on —
+  // this file's existence is now just an implementation detail of the
+  // download step, not something the read path depends on.
+  const nativePath = await window.SwadhyayMasterDB.getTempFileNativePath(fs, packFileName(scholarId), dir || "DATA");
+  await window.SwadhyayMasterDB.mergeVedaPack(scholarId, null, nativePath);
+  try {
+    await fs.deleteFile({ path: packFileName(scholarId), directory: dir || "DATA" });
+  } catch (e) { /* non-fatal — next isPackDownloaded check no longer depends on this file */ }
 
   return true;
 
@@ -1135,6 +1125,12 @@ async function deletePack(scholarId) {
 
 
   await detachPack(scholarId);
+
+  try {
+    await window.SwadhyayMasterDB.removeVedaPack(scholarId);
+  } catch (e) {
+    console.log("Master DB pack removal:", e.message || e);
+  }
 
 
 
@@ -1420,35 +1416,10 @@ async function getBhashyaForMantraFromPack(
 
 ) {
 
-  const sqlite = sqlitePlugin();
-  if (!sqlite) {
-    throw new Error("SQLite plugin not available");
-  }
-
-  const alias = await ensurePackAttached(scholarId);
-
-  const result = await sqlite.query({
-
-    database: CORE_DB_NAME,
-
-
-    statement:
-
-      `SELECT field_key,value
-       FROM ${alias}.bhashyas
-       WHERE mantra_id=?`,
-
-
-    values:[mantraId]
-
-
-  });
-
-
-
-
-  return rowsOf(result);
-
+  // Strategy 3: no ATTACH here anymore — the data already lives in
+  // swadhyay_master.db (merged at download time by downloadPack /
+  // migrateAllLegacyPacks). See master-db.js.
+  return window.SwadhyayMasterDB.getVedaBhashya(scholarId, mantraId);
 
 }
 
