@@ -201,15 +201,48 @@ function withMergeLock(fn) {
   return run;
 }
 
+// Same fix as mbForceDetach in mahabharata.js / db.js / ramayana.js:
+// DETACH fails outright if an open transaction has touched this alias,
+// so a plain single-shot DETACH can't clear a stuck attachment left by
+// a previous merge that errored out mid-transaction. Reset whatever
+// transaction state is stuck, then retry once before giving up.
+async function forceDetachMergeSrc(sqlite, alias) {
+  try {
+    await sqlite.execute({ database: MASTER_DB_NAME, statements: `DETACH DATABASE ${alias};` });
+    return true;
+  } catch (e1) {
+    try { await sqlite.execute({ database: MASTER_DB_NAME, statements: `COMMIT;` }); } catch (e2) { /* fine */ }
+    try { await sqlite.execute({ database: MASTER_DB_NAME, statements: `ROLLBACK;` }); } catch (e3) { /* fine */ }
+    try {
+      await sqlite.execute({ database: MASTER_DB_NAME, statements: `DETACH DATABASE ${alias};` });
+      return true;
+    } catch (e4) {
+      console.warn("master-db: DETACH merge_src still failing after reset:", e4.message || e4);
+      return false;
+    }
+  }
+}
+
 async function withAttachedSource(dbPath, fn) {
   const sqlite = msSqlite();
   const alias = "merge_src";
 
-  try {
-    await sqlite.execute({ database: MASTER_DB_NAME, statements: `DETACH DATABASE ${alias};` });
-  } catch (e) { /* not attached, fine */ }
+  await forceDetachMergeSrc(sqlite, alias);
 
-  await sqlite.execute({ database: MASTER_DB_NAME, statements: `ATTACH DATABASE '${dbPath}' AS ${alias};` });
+  const doAttach = () => sqlite.execute({ database: MASTER_DB_NAME, statements: `ATTACH DATABASE '${dbPath}' AS ${alias};` });
+
+  try {
+    await doAttach();
+  } catch (e) {
+    const msg = (e?.message || String(e));
+    if (!msg.includes("already in use")) throw e;
+    // Stuck attached from a previous run that the reset above couldn't
+    // clear (e.g. an open read touching it right now). One more forced
+    // reset-and-retry before giving up for good.
+    const cleared = await forceDetachMergeSrc(sqlite, alias);
+    if (!cleared) throw e;
+    await doAttach();
+  }
 
   try {
     await sqlite.execute({ database: MASTER_DB_NAME, statements: "BEGIN TRANSACTION;" });
@@ -219,10 +252,9 @@ async function withAttachedSource(dbPath, fn) {
     try { await sqlite.execute({ database: MASTER_DB_NAME, statements: "ROLLBACK;" }); } catch (e2) { /* nothing to roll back */ }
     throw err;
   } finally {
-    try {
-      await sqlite.execute({ database: MASTER_DB_NAME, statements: `DETACH DATABASE ${alias};` });
-    } catch (e) {
-      console.warn("master-db: DETACH merge_src failed (will be retried on next merge attempt):", e.message || e);
+    const detached = await forceDetachMergeSrc(sqlite, alias);
+    if (!detached) {
+      console.warn("master-db: DETACH merge_src failed (will be retried on next merge attempt)");
     }
   }
 }
