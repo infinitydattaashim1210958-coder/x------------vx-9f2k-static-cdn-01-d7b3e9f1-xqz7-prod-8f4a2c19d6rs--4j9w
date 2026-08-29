@@ -453,3 +453,157 @@ a{color:inherit;text-decoration:none;}
 }
 .continueReadingLabel { font-size: .75rem; color: var(--gold); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
 .continueReadingTitle { font-size: 1rem; color: var(--parchment); }
+
+/* ══════════════════════════════════════════════════════
+   INTERACTIVE / "LIVING" UI — added v7.2
+   Kept to transform+opacity where possible (Capacitor
+   WebView) and layered per the hierarchy:
+     always-on (very subtle) → interaction feedback →
+     navigation → reading state → loading.
+   All respect prefers-reduced-motion at the bottom.
+══════════════════════════════════════════════════════ */
+
+/* -- 1. Ambient background glow (very subtle, "breathing") -- */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -30%;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(212,162,76,.07), transparent 25%),
+    radial-gradient(circle at 80% 30%, rgba(79,140,107,.05), transparent 28%),
+    radial-gradient(circle at 50% 80%, rgba(212,162,76,.04), transparent 25%);
+  animation: ambientMove 18s ease-in-out infinite alternate;
+}
+@keyframes ambientMove {
+  0%   { transform: translate3d(-3%, -2%, 0) scale(1); }
+  50%  { transform: translate3d(3%, 2%, 0) scale(1.05); }
+  100% { transform: translate3d(-2%, 3%, 0) scale(1.02); }
+}
+
+/* -- 2. App-bar icon buttons: press feedback + ripple burst -- */
+.iconBtn {
+  position: relative;
+  overflow: hidden;
+  transition: transform .18s ease, color .2s ease, background .2s ease;
+}
+.iconBtn:active { transform: scale(.82); }
+.iconBtn::after {
+  content: ""; position: absolute; inset: 50%; width: 0; height: 0;
+  border-radius: 50%; background: rgba(240,194,106,.18);
+  transform: translate(-50%, -50%);
+  transition: width .35s ease, height .35s ease;
+}
+.iconBtn:active::after { width: 70px; height: 70px; }
+
+/* -- 3. Material-style ripple for list/card items (JS adds .ripple, see app.js rippleInit()) -- */
+.listItem, .numChip, .rangeItem, .mantraItem, .bookCard, .item, .tabBtn, .langChip {
+  position: relative; overflow: hidden;
+}
+.listItem::after, .numChip::after, .rangeItem::after, .mantraItem::after,
+.bookCard::after, .item::after, .tabBtn::after, .langChip::after {
+  content: ""; position: absolute; width: 12px; height: 12px; border-radius: 50%;
+  left: var(--x, 50%); top: var(--y, 50%);
+  transform: translate(-50%, -50%) scale(0);
+  background: rgba(240,194,106,.16); pointer-events: none;
+}
+.listItem.ripple::after, .numChip.ripple::after, .rangeItem.ripple::after,
+.mantraItem.ripple::after, .bookCard.ripple::after, .item.ripple::after,
+.tabBtn.ripple::after, .langChip.ripple::after {
+  animation: rippleAnim .55s ease-out;
+}
+@keyframes rippleAnim { to { transform: translate(-50%, -50%) scale(20); opacity: 0; } }
+
+/* -- 4. Page transition: #app re-plays this every route change (see router()) -- */
+#app.pageEnter { animation: pageEnter .28s ease; }
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* -- 5. Mantra/shloka/adhyay detail: staggered reveal instead of a hard cut -- */
+.mantraDetail > * { animation: sacredReveal .5s ease both; }
+.mantraDetail > *:nth-child(1) { animation-delay: .04s; }
+.mantraDetail > *:nth-child(2) { animation-delay: .10s; }
+.mantraDetail > *:nth-child(3) { animation-delay: .16s; }
+.mantraDetail > *:nth-child(4) { animation-delay: .22s; }
+.mantraDetail > *:nth-child(n+5) { animation-delay: .26s; }
+@keyframes sacredReveal {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* -- 6. Sanskrit/verse text: gentle glow pulse, never distracting -- */
+.sanskritBlock { animation: mantraGlow 4.5s ease-in-out infinite; }
+@keyframes mantraGlow {
+  0%, 100% { text-shadow: 0 0 0 rgba(240,194,106,0); }
+  50%      { text-shadow: 0 0 14px rgba(240,194,106,.12), 0 0 26px rgba(212,162,76,.06); }
+}
+
+/* -- 7. Bookmark burst (JS toggles .bookmarkPop, see animateBookmarkBurst()) -- */
+.bookmarkPop { animation: bookmarkPop .4s cubic-bezier(.2,.8,.2,1); }
+@keyframes bookmarkPop {
+  0%   { transform: scale(.7) rotate(-10deg); }
+  55%  { transform: scale(1.22) rotate(5deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+
+/* -- 8. Reading-progress bar (shown only while a reading screen is active) -- */
+#readingProgress {
+  position: fixed; top: 60px; left: 0; width: 0%; height: 2px;
+  background: linear-gradient(90deg, var(--gold), var(--gold-bright));
+  z-index: 20; box-shadow: 0 0 8px rgba(240,194,106,.5);
+  transition: width .08s linear;
+  display: none;
+}
+#readingProgress.visible { display: block; }
+
+/* -- 9. Card / item depth -- */
+.card, .section, .mantraDetail, .mantraItem, .bookCard {
+  box-shadow: 0 6px 20px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.02);
+}
+@media (hover:hover) {
+  .card:hover, .mantraItem:hover, .bookCard:hover {
+    transform: translateY(-2px); border-color: rgba(212,162,76,.28);
+  }
+}
+
+/* -- 10. Search box expand -- */
+.searchBox { animation: searchExpand .3s ease; }
+@keyframes searchExpand {
+  from { opacity: 0; transform: translateY(-8px) scaleY(.94); }
+  to   { opacity: 1; transform: translateY(0) scaleY(1); }
+}
+.searchHighlight {
+  color: var(--gold-bright); background: rgba(212,162,76,.14);
+  border-radius: 3px; padding: 1px 3px;
+}
+
+/* -- 11. Loading screen: floating particles around the ওম্ -- */
+.sacredParticles { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.sacredParticles span {
+  position: absolute; width: 3px; height: 3px; border-radius: 50%;
+  background: var(--gold-bright); opacity: .35;
+  animation: particleFloat linear infinite;
+}
+.sacredParticles span:nth-child(1) { left: 18%; bottom: 10%; animation-duration: 8s; }
+.sacredParticles span:nth-child(2) { left: 32%; bottom: 20%; animation-duration: 11s; animation-delay: 1.2s; }
+.sacredParticles span:nth-child(3) { left: 47%; bottom: 5%;  animation-duration: 9s;  animation-delay: 2.4s; }
+.sacredParticles span:nth-child(4) { left: 61%; bottom: 15%; animation-duration: 12s; animation-delay: .6s; }
+.sacredParticles span:nth-child(5) { left: 76%; bottom: 8%;  animation-duration: 10s; animation-delay: 3s; }
+.sacredParticles span:nth-child(6) { left: 24%; bottom: 25%; animation-duration: 13s; animation-delay: 1.8s; }
+@keyframes particleFloat {
+  from { transform: translateY(30px); opacity: 0; }
+  20%  { opacity: .4; }
+  80%  { opacity: .2; }
+  to   { transform: translateY(-60vh); opacity: 0; }
+}
+
+/* -- Respect reduced-motion for everything added above -- */
+@media (prefers-reduced-motion: reduce) {
+  body::before, #app.pageEnter, .mantraDetail > *, .sanskritBlock,
+  .bookmarkPop, .sacredParticles span, .searchBox { animation: none !important; }
+  .listItem::after, .numChip::after, .rangeItem::after, .mantraItem::after,
+  .bookCard::after, .item::after, .tabBtn::after, .langChip::after { display: none; }
+}
