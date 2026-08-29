@@ -196,7 +196,12 @@ async function initializeMasterDatabase() {
  */
 let _mergeQueue = Promise.resolve();
 function withMergeLock(fn) {
-  const run = _mergeQueue.then(fn, fn);
+  // FIX: was .then(fn, fn) — passing fn as the rejection handler caused the
+  // next merge to start before the previous one's finally (DETACH) completed
+  // whenever a merge errored, leaving merge_src still attached and producing
+  // "already in use" on the next ATTACH. .then(fn) ensures fn only runs after
+  // the previous promise fully settles (including its finally block).
+  const run = _mergeQueue.then(fn);
   _mergeQueue = run.then(() => {}, () => {});
   return run;
 }
