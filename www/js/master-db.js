@@ -206,20 +206,29 @@ function withMergeLock(fn) {
   return run;
 }
 
-// Same fix as mbForceDetach in mahabharata.js / db.js / ramayana.js:
-// DETACH fails outright if an open transaction has touched this alias,
-// so a plain single-shot DETACH can't clear a stuck attachment left by
-// a previous merge that errored out mid-transaction. Reset whatever
-// transaction state is stuck, then retry once before giving up.
+// FIX: All ATTACH/DETACH/COMMIT/ROLLBACK use sqlite.query() instead of
+// sqlite.execute(). execute() wraps every statement in an implicit
+// BEGIN/COMMIT. SQLite forbids DETACH inside a transaction when that
+// database was touched in the same transaction — so execute()-based
+// DETACH always fails after any merge that used execute() to write data.
+// query() issues a bare statement with no implicit transaction wrapper,
+// which is what ATTACH, DETACH, COMMIT, and ROLLBACK all require.
+async function msBareStatement(sqlite, sql) {
+  // query() is the only CapacitorSQLite call that issues a bare statement
+  // without wrapping in BEGIN/COMMIT. We don't use the return value here,
+  // but query() is safe for DDL/control statements that return no rows.
+  await sqlite.query({ database: MASTER_DB_NAME, statement: sql, values: [] });
+}
+
 async function forceDetachMergeSrc(sqlite, alias) {
   try {
-    await sqlite.execute({ database: MASTER_DB_NAME, statements: `DETACH DATABASE ${alias};` });
+    await msBareStatement(sqlite, `DETACH DATABASE ${alias};`);
     return true;
   } catch (e1) {
-    try { await sqlite.execute({ database: MASTER_DB_NAME, statements: `COMMIT;` }); } catch (e2) { /* fine */ }
-    try { await sqlite.execute({ database: MASTER_DB_NAME, statements: `ROLLBACK;` }); } catch (e3) { /* fine */ }
+    try { await msBareStatement(sqlite, `COMMIT;`); } catch (e2) { /* fine */ }
+    try { await msBareStatement(sqlite, `ROLLBACK;`); } catch (e3) { /* fine */ }
     try {
-      await sqlite.execute({ database: MASTER_DB_NAME, statements: `DETACH DATABASE ${alias};` });
+      await msBareStatement(sqlite, `DETACH DATABASE ${alias};`);
       return true;
     } catch (e4) {
       console.warn("master-db: DETACH merge_src still failing after reset:", e4.message || e4);
@@ -234,29 +243,22 @@ async function withAttachedSource(dbPath, fn) {
 
   await forceDetachMergeSrc(sqlite, alias);
 
-  const doAttach = () => sqlite.execute({ database: MASTER_DB_NAME, statements: `ATTACH DATABASE '${dbPath}' AS ${alias};` });
+  // FIX: ATTACH also uses msBareStatement (query) — not execute().
+  // execute() wraps ATTACH in BEGIN/COMMIT which causes CapacitorSQLite
+  // to treat the attached database as part of the transaction, making
+  // subsequent DETACH impossible until the transaction closes.
+  const doAttach = () => msBareStatement(sqlite, `ATTACH DATABASE '${dbPath}' AS ${alias};`);
 
   try {
     await doAttach();
   } catch (e) {
     const msg = (e?.message || String(e));
     if (!msg.includes("already in use")) throw e;
-    // Stuck attached from a previous run that the reset above couldn't
-    // clear (e.g. an open read touching it right now). One more forced
-    // reset-and-retry before giving up for good.
     const cleared = await forceDetachMergeSrc(sqlite, alias);
     if (!cleared) throw e;
     await doAttach();
   }
 
-  // No manual BEGIN TRANSACTION here: execute() already wraps whatever
-  // statement it's given in its own atomic call, and issuing a literal
-  // "BEGIN TRANSACTION;" while none is open makes execute() try to
-  // nest a transaction inside the one it auto-opens for that call —
-  // "cannot start a transaction within a transaction". fn(alias) runs
-  // its DELETE-then-INSERT as separate execute() calls, each already
-  // atomic on its own; the merge is idempotent (safe to re-run from
-  // scratch), so cross-statement atomicity here was never required.
   try {
     await fn(alias);
   } finally {
