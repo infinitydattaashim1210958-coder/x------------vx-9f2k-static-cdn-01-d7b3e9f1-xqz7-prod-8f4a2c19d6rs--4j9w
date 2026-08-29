@@ -79,7 +79,11 @@ async function initializeMasterDatabase() {
 
     // High-concurrency read/write mode — see blueprint blind spot #4
     // (abrupt termination during ingest must not corrupt the DB).
-    await msExec("PRAGMA journal_mode=WAL;");
+    // journal_mode=WAL is the one PRAGMA that returns a result row (the
+    // resulting mode) instead of just applying — Android's execSQL()
+    // rejects any statement classified as a query, so this one MUST go
+    // through query(), unlike the plain setters below.
+    await msQuery("PRAGMA journal_mode=WAL;");
     await msExec("PRAGMA synchronous=NORMAL;");
     await msExec("PRAGMA foreign_keys=ON;");
 
