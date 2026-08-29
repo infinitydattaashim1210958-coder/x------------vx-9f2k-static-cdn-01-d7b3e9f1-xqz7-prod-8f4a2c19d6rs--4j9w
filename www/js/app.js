@@ -1107,6 +1107,10 @@ async function screenLibrary() {
     root.innerHTML = `<div class="empty">এখনো কোনো বই যোগ করা হয়নি।</div>`;
     return;
   }
+
+  // Always show alphabetically, regardless of upload/manifest order.
+  books.sort((a, b) => (a.title || "").localeCompare(b.title || "", "bn"));
+
   renderLibraryList(books, manifest);
 }
 
@@ -1174,6 +1178,226 @@ function renderLibraryList(books, manifest) {
   });
 }
 
+/**
+ * Adds a 🔖 button after every heading (h1/h2/h3) inside a library
+ * book's iframe, so each chapter can be bookmarked on its own — not
+ * just one bookmark for the whole book.
+ *
+ * Each chapter bookmark gets its own hash:
+ *   #/library/read/<bookId>/h/<headingId>
+ * The router (see router()) only reads parts[2] (bookId) for this
+ * route, so the "/h/<id>" suffix is inert for navigation — it exists
+ * purely so BookmarkManager.add() (which keys on hash) treats every
+ * chapter as a distinct bookmark instead of overwriting the same one.
+ * scrollPercent is still what actually restores position on open.
+ *
+ * Headings that already have an id keep it; headings without one get
+ * a stable auto-generated id so re-opening the book doesn't shuffle
+ * existing bookmark targets on repeat runs of this function.
+ */
+function addChapterBookmarkButtons(frame, bookId, bookTitle) {
+  try {
+    const cd = frame.contentDocument;
+    const cw = frame.contentWindow;
+    if (!cd || !cw) return;
+    const headings = cd.querySelectorAll("h1, h2, h3");
+    headings.forEach((h, i) => {
+      if (h.querySelector(".swadhyayChBookmark")) return; // already added
+      if (!h.id) h.id = `swadhyay-ch-${i}`;
+
+      const btn = cd.createElement("button");
+      btn.className = "swadhyayChBookmark";
+      btn.type = "button";
+      btn.textContent = "🔖";
+      btn.setAttribute("aria-label", "এই অধ্যায়ে বুকমার্ক করুন");
+      btn.style.cssText =
+        "border:none;background:none;cursor:pointer;font-size:.8em;" +
+        "opacity:.5;margin-inline-start:8px;vertical-align:middle;padding:0;";
+
+      btn.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        try {
+          const max = cd.documentElement.scrollHeight - cw.innerHeight;
+          const top = h.getBoundingClientRect().top + cw.scrollY;
+          const pct = max > 0 ? Math.max(0, Math.min(100, (top / max) * 100)) : 0;
+          const chapterLabel = (h.textContent || "").replace(/🔖|✅/g, "").trim();
+          await window.BookmarkManager.add({
+            hash: `#/library/read/${bookId}/h/${encodeURIComponent(h.id)}`,
+            title: bookTitle,
+            subtitle: chapterLabel,
+            preview: "",
+            scrollPercent: pct,
+          });
+          btn.textContent = "✅";
+          setTimeout(() => { btn.textContent = "🔖"; }, 900);
+        } catch (e) { /* ignore — non-critical UI affordance */ }
+      });
+
+      h.appendChild(btn);
+    });
+  } catch (e) {
+    /* cross-origin document — can't inject, chapter bookmarking just
+       silently unavailable for this book; whole-book bookmark FAB
+       still works via showBookmarkFab() as before. */
+  }
+}
+
+/**
+ * Renders a "db" type library book (downloaded as db.gz, merged into
+ * swadhyay_master.db) as a single scrollable native page — table of
+ * contents at top, every chapter's heading + paragraphs below it, same
+ * one-page reading feel the old html_book pages had, just DB-backed.
+ *
+ * Reference markers: each paragraph's inline digit marker (e.g. the "১"
+ * in "দুষ্কর১") is located in `content` at render time by matching the
+ * ref's ref_number against a standalone Bengali-digit run, then wrapped
+ * in a highlighted, linked <sup>. This mirrors the same heuristic used
+ * when gurugiri.html was first hand-built, but now runs generically for
+ * ANY db.gz book — no per-book markup authoring needed going forward.
+ */
+function esc(s) {
+  const d = document.createElement("div");
+  d.textContent = s || "";
+  return d.innerHTML;
+}
+
+function renderParagraphWithRefs(content, refs) {
+  let text = esc(content);
+  const footnotes = [];
+  (refs || []).forEach((r, i) => {
+    const refAnchor = `dbref-${r.para_seq}-${i}-${Math.random().toString(36).slice(2, 6)}`;
+    let placed = false;
+    if (r.ref_number) {
+      const pattern = new RegExp(`(?<![০-৯])${r.ref_number.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![০-৯])`);
+      const m = pattern.exec(text);
+      if (m) {
+        const marker =
+          `<sup class="dbRefMarkerWrap"><a href="javascript:void(0)" data-scroll-to="${refAnchor}" class="dbRefMarker">${esc(r.ref_number)}</a></sup>`;
+        text = text.slice(0, m.index) + marker + text.slice(m.index + m[0].length);
+        placed = true;
+      }
+    }
+    footnotes.push({ refAnchor, num: r.ref_number || "?", note: r.ref_note || "", placed });
+  });
+  return { html: text, footnotes };
+}
+
+function addNativeChapterBookmarkButtons(bookId, bookTitle) {
+  root.querySelectorAll(".dbBookChapter h2[id]").forEach(h => {
+    if (h.querySelector(".dbChBookmark")) return;
+    const btn = document.createElement("button");
+    btn.className = "dbChBookmark";
+    btn.type = "button";
+    btn.textContent = "🔖";
+    btn.setAttribute("aria-label", "এই অধ্যায়ে বুকমার্ক করুন");
+    btn.style.cssText = "border:none;background:none;cursor:pointer;font-size:.8em;opacity:.5;margin-inline-start:8px;vertical-align:middle;padding:0;";
+    btn.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const doc = document.documentElement;
+      const max = doc.scrollHeight - window.innerHeight;
+      const top = h.getBoundingClientRect().top + window.scrollY;
+      const pct = max > 0 ? Math.max(0, Math.min(100, (top / max) * 100)) : 0;
+      const chapterLabel = (h.textContent || "").replace(/🔖|✅/g, "").trim();
+      await window.BookmarkManager.add({
+        hash: `#/library/read/${bookId}/h/${encodeURIComponent(h.id)}`,
+        title: bookTitle,
+        subtitle: chapterLabel,
+        preview: "",
+        scrollPercent: pct,
+      });
+      btn.textContent = "✅";
+      setTimeout(() => { btn.textContent = "🔖"; }, 900);
+    });
+    h.appendChild(btn);
+  });
+}
+
+async function renderDbBookReader(bookId, entry, pendingPct) {
+  const chapters = await window.SwadhyayMasterDB.getLibraryBookChapters(bookId);
+  if (!chapters.length) {
+    setTitle(entry.title || "বই পড়ুন");
+    root.innerHTML = `<div class="empty">এই বইয়ের কনটেন্ট পাওয়া যায়নি। আবার ডাউনলোড করে দেখুন।</div>`;
+    return;
+  }
+
+  setTitle(entry.title || "বই পড়ুন");
+
+  const tocChapters = chapters.filter(c => !c.is_cover);
+  const tocHtml = tocChapters.length ? `
+    <div class="toc" style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 18px;margin:10px 0 24px;">
+      <div style="font-weight:bold;color:var(--gold);margin-bottom:8px;">সূচিপত্র</div>
+      <ol style="margin:0;padding-inline-start:1.3em;">
+        ${tocChapters.map(c => `<li><a href="javascript:void(0)" data-scroll-to="${c.chapter_id}" style="color:var(--parchment);">${esc(c.heading)}</a></li>`).join("")}
+      </ol>
+    </div>` : "";
+
+  const chapterBlocks = await Promise.all(chapters.map(async (c) => {
+    const paras = await window.SwadhyayMasterDB.getLibraryBookParagraphs(bookId, c.chapter_id);
+    let footnoteBlock = "";
+    const allFootnotes = [];
+    const paraHtml = paras.map(p => {
+      const { html, footnotes } = renderParagraphWithRefs(p.content, p.refs);
+      allFootnotes.push(...footnotes);
+      return `<p style="text-align:justify;line-height:1.9;margin:0 0 1em;">${html}</p>`;
+    }).join("");
+
+    if (allFootnotes.length) {
+      footnoteBlock = `
+        <div class="dbRefBlock" style="margin-top:1.2em;padding:12px 16px;background:var(--panel);border-inline-start:3px solid var(--gold-bright);border-radius:6px;">
+          <div style="font-weight:bold;color:var(--gold);font-size:.9em;margin-bottom:6px;">তথ্যসূত্র</div>
+          ${allFootnotes.map(fn => `
+            <p id="${fn.refAnchor}" style="font-size:.9em;color:var(--ash);margin:.4em 0;${fn.placed ? "" : "opacity:.7;"}">
+              <span style="background:#3a2f14;color:var(--gold-bright);border-radius:4px;padding:0 4px;font-weight:bold;">${esc(fn.num)}।</span>
+              ${esc(fn.note)}
+            </p>`).join("")}
+        </div>`;
+    }
+
+    if (c.is_cover) {
+      return `<section class="dbBookChapter" id="${c.chapter_id}" style="text-align:center;padding-bottom:24px;border-bottom:2px solid var(--gold-bright);margin-bottom:20px;">
+        <h1 style="color:var(--gold);">${esc(c.heading)}</h1>${paraHtml}
+      </section>`;
+    }
+    return `<section class="dbBookChapter" id="${c.chapter_id}" style="margin-top:2em;">
+      <h2 id="${c.chapter_id}-h" style="color:var(--gold);border-bottom:1px solid var(--line);padding-bottom:6px;">${esc(c.heading)}</h2>
+      ${paraHtml}${footnoteBlock}
+    </section>`;
+  }));
+
+  root.innerHTML = `
+    <style>
+      .dbRefMarkerWrap { font-size:.7em; }
+      .dbRefMarker { background:#3a2f14; color:var(--gold-bright); font-weight:bold; border-radius:4px; padding:0 3px; text-decoration:none; }
+    </style>
+    <div class="mantraDetail" style="text-align:left;">${tocHtml}${chapterBlocks.join("")}</div>`;
+
+  addNativeChapterBookmarkButtons(bookId, entry.title || "বই");
+
+  // TOC entries and reference markers use data-scroll-to + scrollIntoView
+  // instead of href="#id" — a plain in-page anchor would change
+  // location.hash and fire the app's own hashchange router, which reads
+  // it as a (nonexistent) route and navigates away from the book.
+  root.querySelectorAll("[data-scroll-to]").forEach(a => {
+    a.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      const target = document.getElementById(a.dataset.scrollTo);
+      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+
+  if (pendingPct != null) {
+    bmRestoreScrollPercent(pendingPct);
+  }
+
+  showBookmarkFab({
+    title: entry.title || "বই",
+    subtitle: "ডিজিটাল লাইব্রেরি",
+    preview: "",
+  });
+}
+
 async function screenLibraryReader(bookId) {
   showBack(true);
   setTitle("বই পড়ুন");
@@ -1184,6 +1408,12 @@ async function screenLibraryReader(bookId) {
   if (!entry) {
     root.innerHTML = `<div class="empty">এই বইটা ডাউনলোড করা নেই।</div>`;
     return;
+  }
+
+  if (entry.type === "db") {
+    const pendingPct = window._bmPendingLibraryScroll;
+    window._bmPendingLibraryScroll = null;
+    return renderDbBookReader(bookId, entry, pendingPct);
   }
 
   if (entry.renderMode === "external") {
@@ -1243,6 +1473,11 @@ async function screenLibraryReader(bookId) {
         `;
         cd.head.appendChild(style);
       } catch (e) { /* cross-origin — book can't be restyled, ignore */ }
+
+      // Per-chapter bookmarking: add a small 🔖 next to every heading so
+      // any chapter can be bookmarked individually, not just "this book"
+      // as a whole. See addChapterBookmarkButtons() below.
+      addChapterBookmarkButtons(frame, bookId, entry.title || "বই");
 
       if (pendingPct == null) return;
       try {
@@ -2272,7 +2507,10 @@ async function router() {
 
     // Library
     if (parts[0] === "library" && parts.length === 1) return await screenLibrary();
-    if (parts[0] === "library" && parts[1] === "read" && parts.length === 3) return await screenLibraryReader(parts[2]);
+    // (parts.length >= 3, not === 3: per-chapter bookmarks append /h/<slug>
+    // after the bookId — screenLibraryReader only reads parts[2], the rest
+    // is used purely to make each chapter's bookmark hash unique)
+    if (parts[0] === "library" && parts[1] === "read" && parts.length >= 3) return await screenLibraryReader(parts[2]);
 
     // Vedas
     if (parts[0] === "vedas" && parts.length === 1) return await screenVedas();

@@ -47,6 +47,11 @@ async function fetchBlogBooks() {
       title: b.title,
       filename: b.filename,
       date: b.date || "",
+      // "html" (existing repo-hosted interactive pages) or "db" (new
+      // db.gz packs merged into swadhyay_master.db). Old manifest.json
+      // entries have no type field at all — default to "html" so every
+      // book uploaded before this change keeps working unchanged.
+      type: b.type || "html",
     }));
 
   } catch (networkErr) {
@@ -64,6 +69,7 @@ async function fetchBlogBooks() {
         title: b.title,
         filename: b.filename,
         date: b.date || "",
+        type: b.type || "html",
       }));
     }
 
@@ -97,6 +103,8 @@ function blobToBase64(blob) {
 }
 
 async function downloadBook(book, onProgress) {
+  if (book.type === "db") return downloadDbBook(book, onProgress);
+
   const url = REPO_RAW_BASE + book.filename;
   onProgress && onProgress("ডাউনলোড হচ্ছে…");
 
@@ -125,6 +133,7 @@ async function downloadBook(book, onProgress) {
   manifest[book.id] = {
     title: book.title,
     filename: localFilename,
+    type: "html",
     downloadedAt: new Date().toISOString(),
   };
   await saveManifest(manifest);
@@ -132,15 +141,84 @@ async function downloadBook(book, onProgress) {
   return { success: true, filename: localFilename };
 }
 
+/* ── db.gz books — merged into swadhyay_master.db via master-db.js,
+ * same fetch → DecompressionStream("gzip") → writeFile → ATTACH-merge →
+ * delete-temp-file pipeline mahabharata.js/ramayana.js already use for
+ * their packs (see mbDownloadPack in mahabharata.js). Nothing here reads
+ * from the local html_book path — the manifest entry for a "db" book has
+ * no `filename`, since the actual content lives in the master DB, not on
+ * disk as a standalone file. ── */
+
+const LIB_DB_PACK_DIR = "library_book_packs";
+
+function libDbPackFileName(bookId) {
+  return `${LIB_DB_PACK_DIR}/${bookId}.db`;
+}
+
+async function libDecompressGzip(arrayBuffer) {
+  const ds = new DecompressionStream("gzip");
+  const stream = new Blob([arrayBuffer]).stream().pipeThrough(ds);
+  return await new Response(stream).blob();
+}
+
+async function downloadDbBook(book, onProgress) {
+  const url = REPO_RAW_BASE + book.filename; // e.g. "gurugiri.db.gz"
+  onProgress && onProgress("ডাউনলোড হচ্ছে…");
+
+  let res;
+  try {
+    res = await fetch(url, { cache: "no-store" });
+  } catch (networkErr) {
+    throw new Error("নেটওয়ার্ক সংযোগ পাওয়া যায়নি।");
+  }
+  if (!res.ok) throw new Error(`ডাউনলোড ব্যর্থ (HTTP ${res.status})`);
+  const buffer = await res.arrayBuffer();
+
+  onProgress && onProgress("আনপ্যাক হচ্ছে…");
+  const dbBlob = await libDecompressGzip(buffer);
+  const base64Data = await blobToBase64(dbBlob);
+
+  const fs = fsPlugin();
+  const packPath = libDbPackFileName(book.id);
+  await fs.writeFile({ path: packPath, data: base64Data, directory: "DATA", recursive: true });
+
+  onProgress && onProgress("একত্রিত হচ্ছে…");
+  const uri = await fs.getUri({ path: packPath, directory: "DATA" });
+  const nativePath = uri.uri.startsWith("file://") ? uri.uri.replace("file://", "") : uri.uri;
+  await window.SwadhyayMasterDB.mergeLibraryBookPack(book.id, book.title, nativePath);
+  try { await fs.deleteFile({ path: packPath, directory: "DATA" }); } catch (e) { /* non-fatal */ }
+
+  const manifest = await getManifest();
+  manifest[book.id] = {
+    title: book.title,
+    type: "db",
+    downloadedAt: new Date().toISOString(),
+  };
+  await saveManifest(manifest);
+
+  onProgress && onProgress("সম্পন্ন!");
+  return { success: true };
+}
+
 async function deleteBook(bookId) {
   const manifest = await getManifest();
   const entry = manifest[bookId];
   if (!entry) return;
-  try {
-    await fsPlugin().deleteFile({ path: entry.filename, directory: "DATA" });
-  } catch (e) {
-    console.warn("File already missing or failed to delete:", e);
+
+  if (entry.type === "db") {
+    try {
+      await window.SwadhyayMasterDB.removeLibraryBookPack(bookId);
+    } catch (e) {
+      console.warn("Library db.gz pack removal failed:", e);
+    }
+  } else {
+    try {
+      await fsPlugin().deleteFile({ path: entry.filename, directory: "DATA" });
+    } catch (e) {
+      console.warn("File already missing or failed to delete:", e);
+    }
   }
+
   delete manifest[bookId];
   await saveManifest(manifest);
 }

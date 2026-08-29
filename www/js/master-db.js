@@ -182,6 +182,52 @@ async function initializeMasterDatabase() {
       );
     `);
 
+    // 4. Digital Library books shipped as db.gz (replaces the plain-html
+    //    path for new books going forward — old html_book library entries
+    //    are untouched and keep working exactly as before via lib.js).
+    //    book_id is the manifest.json string id (e.g. "gurugiri"), not a
+    //    numeric pack id like the other three categories.
+    await msExec(`
+      CREATE TABLE IF NOT EXISTS library_book_chapters (
+        book_id     TEXT NOT NULL,
+        chapter_id  TEXT NOT NULL,
+        seq         INTEGER,
+        heading     TEXT,
+        is_cover    INTEGER DEFAULT 0,
+        PRIMARY KEY (book_id, chapter_id)
+      );
+    `);
+    await msExec(`
+      CREATE TABLE IF NOT EXISTS library_book_paragraphs (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        book_id     TEXT NOT NULL,
+        chapter_id  TEXT NOT NULL,
+        seq         INTEGER,
+        content     TEXT
+      );
+    `);
+    await msExec(`CREATE INDEX IF NOT EXISTS idx_lib_para_chapter ON library_book_paragraphs(book_id, chapter_id);`);
+    // References are a child of one paragraph — a paragraph can carry more
+    // than one footnote marker (e.g. "১।...২।..." in the same cell), which
+    // is why this isn't just two extra columns on the paragraph itself.
+    await msExec(`
+      CREATE TABLE IF NOT EXISTS library_book_refs (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        book_id     TEXT NOT NULL,
+        chapter_id  TEXT NOT NULL,
+        para_seq    INTEGER NOT NULL,
+        ref_seq     INTEGER NOT NULL,
+        ref_number  TEXT,
+        ref_note    TEXT
+      );
+    `);
+    await msExec(`CREATE INDEX IF NOT EXISTS idx_lib_refs_para ON library_book_refs(book_id, chapter_id, para_seq);`);
+    await msExec(`
+      CREATE VIRTUAL TABLE IF NOT EXISTS library_book_paragraphs_fts USING fts5(
+        content, book_id UNINDEXED, chapter_id UNINDEXED, para_id UNINDEXED
+      );
+    `);
+
     _masterReady = true;
   })();
 
@@ -282,11 +328,19 @@ async function getTempFileNativePath(fsPluginRef, path, directory) {
 
 async function upsertInstalledPackage(packageId, category, sourceId, title) {
   const sqlite = msSqlite();
+  // source_id is declared INTEGER but SQLite's type affinity still stores
+  // a TEXT value as-is when it doesn't look like a number — so this also
+  // works fine for library_book's string ids (e.g. "gurugiri"), not just
+  // the numeric scholarId/kandaPackId/parbaId used by the other three
+  // categories. Number(sourceId) would silently become NaN → invalid SQL
+  // for those string ids, hence the branch.
+  const isPlainInt = /^-?\d+$/.test(String(sourceId));
+  const sourceIdSql = isPlainInt ? Number(sourceId) : `'${String(sourceId).replace(/'/g, "''")}'`;
   await sqlite.execute({
     database: MASTER_DB_NAME,
     statements: `
       INSERT INTO installed_packages (package_id, category, source_id, title)
-      VALUES ('${packageId}', '${category}', ${Number(sourceId)}, ${title ? `'${String(title).replace(/'/g, "''")}'` : "NULL"})
+      VALUES ('${packageId}', '${category}', ${sourceIdSql}, ${title ? `'${String(title).replace(/'/g, "''")}'` : "NULL"})
       ON CONFLICT(package_id) DO UPDATE SET title=excluded.title, version=version+1;
     `,
   });
@@ -495,6 +549,112 @@ async function removeMahabharataPack(parbaId) {
   await msExec(`DELETE FROM installed_packages WHERE package_id='mb_${Number(parbaId)}';`);
 }
 
+/* ── 4. Digital Library books (db.gz) ────────────────────────────────
+ * Source pack (the .db inside the downloaded .db.gz) is expected to have:
+ *   chapters   (chapter_id TEXT PRIMARY KEY, seq INTEGER, heading TEXT, is_cover INTEGER)
+ *   paragraphs (chapter_id TEXT, seq INTEGER, content TEXT)
+ *   refs       (chapter_id TEXT, para_seq INTEGER, ref_seq INTEGER, ref_number TEXT, ref_note TEXT)
+ * bookId is the manifest.json string id (e.g. "gurugiri").
+ */
+
+async function mergeLibraryBookPack(bookId, title, tempDbPath) {
+  await initializeMasterDatabase();
+  return withMergeLock(async () => {
+    const bid = String(bookId).replace(/'/g, "''");
+    const packageId = `libbook_${bid}`;
+    await withAttachedSource(tempDbPath, async (alias) => {
+      const sqlite = msSqlite();
+      // Idempotent re-merge (e.g. re-download after interruption).
+      await sqlite.execute({ database: MASTER_DB_NAME, statements: `DELETE FROM library_book_refs WHERE book_id='${bid}';` });
+      await sqlite.execute({ database: MASTER_DB_NAME, statements: `DELETE FROM library_book_paragraphs WHERE book_id='${bid}';` });
+      await sqlite.execute({ database: MASTER_DB_NAME, statements: `DELETE FROM library_book_chapters WHERE book_id='${bid}';` });
+      await sqlite.execute({ database: MASTER_DB_NAME, statements: `DELETE FROM library_book_paragraphs_fts WHERE book_id='${bid}';` });
+
+      await sqlite.execute({
+        database: MASTER_DB_NAME,
+        statements: `INSERT OR REPLACE INTO library_book_chapters (book_id, chapter_id, seq, heading, is_cover)
+                     SELECT '${bid}', chapter_id, seq, heading, is_cover FROM ${alias}.chapters;`,
+      });
+      await sqlite.execute({
+        database: MASTER_DB_NAME,
+        statements: `INSERT INTO library_book_paragraphs (book_id, chapter_id, seq, content)
+                     SELECT '${bid}', chapter_id, seq, content FROM ${alias}.paragraphs;`,
+      });
+      await sqlite.execute({
+        database: MASTER_DB_NAME,
+        statements: `INSERT INTO library_book_refs (book_id, chapter_id, para_seq, ref_seq, ref_number, ref_note)
+                     SELECT '${bid}', chapter_id, para_seq, ref_seq, ref_number, ref_note FROM ${alias}.refs;`,
+      });
+      await sqlite.execute({
+        database: MASTER_DB_NAME,
+        statements: `INSERT INTO library_book_paragraphs_fts (rowid, content, book_id, chapter_id, para_id)
+                     SELECT id, content, book_id, chapter_id, id FROM library_book_paragraphs WHERE book_id='${bid}';`,
+      });
+    });
+    await upsertInstalledPackage(packageId, "library_book", bookId, title);
+    return true;
+  });
+}
+
+async function isLibraryBookInstalled(bookId) {
+  await initializeMasterDatabase();
+  const rows = await msQuery(`SELECT 1 FROM installed_packages WHERE package_id=?`, [`libbook_${bookId}`]);
+  return rows.length > 0;
+}
+
+async function getLibraryBookChapters(bookId) {
+  await initializeMasterDatabase();
+  return msQuery(
+    `SELECT chapter_id, seq, heading, is_cover FROM library_book_chapters WHERE book_id=? ORDER BY seq`,
+    [bookId]
+  );
+}
+
+async function getLibraryBookParagraphs(bookId, chapterId) {
+  await initializeMasterDatabase();
+  const paras = await msQuery(
+    `SELECT id, seq, content FROM library_book_paragraphs WHERE book_id=? AND chapter_id=? ORDER BY seq`,
+    [bookId, chapterId]
+  );
+  const refs = await msQuery(
+    `SELECT para_seq, ref_seq, ref_number, ref_note FROM library_book_refs WHERE book_id=? AND chapter_id=? ORDER BY para_seq, ref_seq`,
+    [bookId, chapterId]
+  );
+  const refsByPara = {};
+  for (const r of refs) {
+    (refsByPara[r.para_seq] = refsByPara[r.para_seq] || []).push(r);
+  }
+  return paras.map(p => ({ ...p, refs: refsByPara[p.seq] || [] }));
+}
+
+async function searchLibraryBook(bookId, term, limit = 50) {
+  await initializeMasterDatabase();
+  const escaped = '"' + term.trim().replace(/"/g, '""') + '"';
+  try {
+    return await msQuery(
+      `SELECT chapter_id, content FROM library_book_paragraphs_fts
+       WHERE book_id = ? AND library_book_paragraphs_fts MATCH ? LIMIT ?`,
+      [bookId, escaped, limit]
+    );
+  } catch (e) {
+    const esc = "%" + term.trim().replace(/[%_]/g, "\\$&") + "%";
+    return msQuery(
+      `SELECT chapter_id, content FROM library_book_paragraphs WHERE book_id=? AND content LIKE ? LIMIT ?`,
+      [bookId, esc, limit]
+    );
+  }
+}
+
+async function removeLibraryBookPack(bookId) {
+  await initializeMasterDatabase();
+  const bid = String(bookId).replace(/'/g, "''");
+  await msExec(`DELETE FROM library_book_refs WHERE book_id='${bid}';`);
+  await msExec(`DELETE FROM library_book_paragraphs WHERE book_id='${bid}';`);
+  await msExec(`DELETE FROM library_book_chapters WHERE book_id='${bid}';`);
+  await msExec(`DELETE FROM library_book_paragraphs_fts WHERE book_id='${bid}';`);
+  await msExec(`DELETE FROM installed_packages WHERE package_id='libbook_${bid}';`);
+}
+
 /* ── One-time legacy migration ───────────────────────────────────────
  * For installs updating from the old per-file ATTACH architecture:
  * any pack file still sitting on disk that ISN'T yet in
@@ -634,6 +794,14 @@ window.SwadhyayMasterDB = {
   getMahabharataAdjacentAdhyayas,
   searchMahabharataParva,
   removeMahabharataPack,
+
+  // Digital Library books (db.gz)
+  mergeLibraryBookPack,
+  isLibraryBookInstalled,
+  getLibraryBookChapters,
+  getLibraryBookParagraphs,
+  searchLibraryBook,
+  removeLibraryBookPack,
 
   // Migration
   migrateAllLegacyPacks,
