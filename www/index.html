@@ -7,11 +7,11 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>ও৩ম্ কৃণ্বন্তো বিশ্বমার্যম্</title>
-<link rel="stylesheet" href="css/app.css?v=72">
+<link rel="stylesheet" href="css/app.css?v=71">
 </head>
 <body>
 
-<div class="appBar">
+<header class="appBar">
   <button id="backBtn" class="iconBtn" aria-label="পেছনে">←</button>
   <div id="appTitle">ও৩ম্ কৃণ্বন্তো বিশ্বমার্যম্</div>
   <div class="appBarRight">
@@ -19,19 +19,29 @@
     <button id="bookmarkBtn" class="iconBtn" aria-label="বুকমার্ক">🔖</button>
     <button id="settingsBtn" class="iconBtn" aria-label="সেটিংস">⚙️</button>
   </div>
-</div>
+</header>
 
-<div id="app"></div>
-
-<nav id="bottomDock" class="bottomDock" aria-label="প্রধান নেভিগেশন">
-  <button type="button" class="dockItem" data-dock-route="#/"><span class="dockIcon" aria-hidden="true">🏠</span>হোম</button>
-  <button type="button" class="dockItem" data-dock-route="#/library"><span class="dockIcon" aria-hidden="true">📚</span>লাইব্রেরি</button>
-  <button type="button" class="dockItem" data-dock-route="#/bookmarks"><span class="dockIcon" aria-hidden="true">🔖</span>বুকমার্ক</button>
-  <button type="button" class="dockItem" data-dock-route="#/search"><span class="dockIcon" aria-hidden="true">⌕</span>খুঁজুন</button>
-  <button type="button" class="dockItem" data-dock-route="#/settings"><span class="dockIcon" aria-hidden="true">⚙️</span>সেটিংস</button>
-</nav>
+<main id="app"></main>
 
 <button id="addBookmarkFab" class="addBookmarkFab" aria-label="এই অংশ বুকমার্ক করুন" style="display:none;">🔖</button>
+
+<nav id="bottomDock" class="bottomDock" aria-label="প্রধান নেভিগেশন">
+  <button class="dockItem" data-dock-route="#/" aria-label="হোম">
+    <span class="dockIcon" aria-hidden="true">🏠</span><span>হোম</span>
+  </button>
+  <button class="dockItem" data-dock-route="#/library" aria-label="লাইব্রেরি">
+    <span class="dockIcon" aria-hidden="true">📚</span><span>লাইব্রেরি</span>
+  </button>
+  <button class="dockItem" data-dock-route="#/bookmarks" aria-label="বুকমার্ক">
+    <span class="dockIcon" aria-hidden="true">🔖</span><span>বুকমার্ক</span>
+  </button>
+  <button class="dockItem" data-dock-route="#/search" aria-label="খুঁজুন">
+    <span class="dockIcon" aria-hidden="true">🔍</span><span>খুঁজুন</span>
+  </button>
+  <button class="dockItem" data-dock-route="#/settings" aria-label="সেটিংস">
+    <span class="dockIcon" aria-hidden="true">⚙️</span><span>সেটিংস</span>
+  </button>
+</nav>
 
 <script src="js/master-db.js"></script>
 <script src="js/db.js"></script>
