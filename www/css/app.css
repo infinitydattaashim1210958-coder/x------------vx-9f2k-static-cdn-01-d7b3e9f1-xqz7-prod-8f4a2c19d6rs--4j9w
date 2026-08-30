@@ -67,6 +67,8 @@ a{color:inherit;text-decoration:none;}
 .iconBtn{
   background:none; border:none; color:var(--gold);
   font-size:1.4rem; cursor:pointer; padding:4px 8px;
+  min-width:44px; min-height:44px;
+  display:inline-flex; align-items:center; justify-content:center;
   visibility:hidden;
 }
 .appBarRight{ display:flex; align-items:center; gap:2px; margin-left:auto; }
@@ -79,12 +81,23 @@ a{color:inherit;text-decoration:none;}
 
 #app{ padding:22px 16px calc(96px + env(safe-area-inset-bottom)); max-width:760px; margin:0 auto; min-height:70vh; }
 
-/* -- Glassmorphic surfaces (curated set — not applied blanket-wide,
-      per performance guidance: only the panels users actually look at). -- */
-.section, .mantraDetail, .bookCard, .card, .quickJumpBar, .homeList,
-.categoryBar, .bottomDock{
+/* -- Glassmorphic surfaces: kept to the surfaces users actually look
+      through to something behind them — top bar, bottom nav dock, and
+      modal sheets. NOT applied to verse blocks, cards, or list panels,
+      which sit over a static background and gain nothing from a blur
+      pass on every scroll/re-render (see .quickJumpBar/.scriptureTabBar/
+      .mantraDetail/.card/.bookCard/.section/.homeList/.categoryBar below
+      — they keep their own solid var(--panel) background instead). -- */
+.bottomDock, .numberPickerSheet, .numberInputSheet{
   backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
   isolation:isolate;
+}
+/* backdrop-filter fallback for browsers/webviews without support —
+   these surfaces still need to read clearly over content behind them. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .appBar, .bottomDock, .numberPickerSheet, .numberInputSheet{
+    background: rgba(7,8,10,.94);
+  }
 }
 
 .bookReaderFrame{
