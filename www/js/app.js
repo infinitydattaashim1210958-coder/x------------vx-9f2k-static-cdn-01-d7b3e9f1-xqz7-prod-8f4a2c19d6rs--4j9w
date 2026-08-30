@@ -18,6 +18,7 @@ const searchBtn = document.getElementById("searchBtn");
 const settingsBtn = document.getElementById("settingsBtn");
 const bookmarkBtn = document.getElementById("bookmarkBtn");
 const addBookmarkFab = document.getElementById("addBookmarkFab");
+const bottomDock = document.getElementById("bottomDock");
 
 const VEDA_THEME = {
   rigveda:     { a: "#d4a24c", b: "#e8915c", tag: "Veda I · Knowledge" },
@@ -435,11 +436,16 @@ async function screenHome() {
       <div class="continueReadingTitle">${continueReading.title}${continueReading.subtitle ? " · " + continueReading.subtitle : ""}</div>
     </div>` : "";
 
+  const categoryChips = HOME_SECTIONS.filter(s => !s.soon).map(s => `
+    <a class="categoryChip" href="${s.route}"><span class="chipIcon">${s.icon}</span>${s.label}</a>
+  `).join("");
+
   root.innerHTML = `
     <div class="hero">
       <div class="om">ओ३म्</div>
       <div class="sub">The Four Vedas & Valmiki Ramayana — সম্পূর্ণ সংকলন</div>
     </div>
+    <div class="categoryBar">${categoryChips}</div>
     ${continueCard}
     <div class="homeList">${items}</div>`;
 
@@ -2013,6 +2019,14 @@ async function screenReaderSettings() {
           <option value="dark">Dark</option>
         </select>
       </div>
+      <div class="settingRow" style="border-bottom:none;">
+        <span>Accent Color</span>
+        <select id="accentSelect" class="settingSelect">
+          <option value="gold">🟡 স্বর্ণালী (Gold)</option>
+          <option value="emerald">🟢 পান্না (Emerald)</option>
+          <option value="indigo">🔵 নীলাভ (Indigo)</option>
+        </select>
+      </div>
     </div>
 
     <div class="section">
@@ -2086,6 +2100,7 @@ async function screenReaderSettings() {
 
   // Populate saved values
   const themeEl = document.getElementById("themeSelect");
+  const accentEl = document.getElementById("accentSelect");
   const sliderEl = document.getElementById("fontSlider");
   const labelEl = document.getElementById("fontSizeLabel");
   const previewEl = document.getElementById("fontPreview");
@@ -2098,6 +2113,7 @@ async function screenReaderSettings() {
 
   const fsPx = parseInt(s.fontSize, 10) || 18;
   themeEl.value = s.theme || "auto";
+  accentEl.value = s.accentTheme || "gold";
   sliderEl.value = fsPx;
   labelEl.textContent = fsPx + "px";
   previewEl.style.fontSize = fsPx + "px";
@@ -2111,12 +2127,16 @@ async function screenReaderSettings() {
     labelEl.textContent = sliderEl.value + "px";
     previewEl.style.fontSize = sliderEl.value + "px";
   });
+  accentEl.addEventListener("change", () => {
+    ChaturvedaSettings.applyAccent(accentEl.value); // live preview only; saved on "Save"
+  });
 
   saveBtn.addEventListener("click", async () => {
     saveBtn.disabled = true;
     saveStatus.textContent = "সেভ হচ্ছে…";
     try {
       await ChaturvedaSettings.save("theme", themeEl.value);
+      await ChaturvedaSettings.save("accentTheme", accentEl.value);
       await ChaturvedaSettings.save("fontSize", sliderEl.value);
       await ChaturvedaSettings.save("fontFamily", fontFamilyEl.value);
       await ChaturvedaSettings.save("lineHeight", lineHeightEl.value);
@@ -2896,9 +2916,59 @@ async function router() {
   root.classList.remove("pageEnter");
   void root.offsetWidth; // force reflow so the animation restarts every time
   root.classList.add("pageEnter");
+  updateDockActive();
 }
 
 window.addEventListener("hashchange", router);
+
+/* ══════════════════════════════════════════════════════
+   BOTTOM NAVIGATION DOCK — persistent mobile nav (5 zones).
+   Active state follows the current hash; the dock itself hides
+   while scrolling down during a long reading session and
+   reappears on scroll-up, so it never blocks the text.
+══════════════════════════════════════════════════════ */
+function updateDockActive() {
+  if (!bottomDock) return;
+  const hash = location.hash || "#/";
+  const items = bottomDock.querySelectorAll(".dockItem");
+  let bestMatch = items[0];
+  let bestLen = -1;
+  items.forEach((btn) => {
+    const route = btn.dataset.dockRoute;
+    const isHome = route === "#/";
+    const matches = isHome ? (hash === "#/" || hash === "" || hash === "#") : hash.startsWith(route);
+    if (matches && route.length > bestLen) {
+      bestMatch = btn;
+      bestLen = route.length;
+    }
+  });
+  items.forEach((btn) => btn.classList.toggle("active", btn === bestMatch && bestLen >= 0));
+}
+
+if (bottomDock) {
+  bottomDock.addEventListener("click", (e) => {
+    const btn = e.target.closest(".dockItem");
+    if (!btn) return;
+    location.hash = btn.dataset.dockRoute;
+  });
+
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!reduceMotion) {
+    let lastY = window.scrollY;
+    let ticking = false;
+    window.addEventListener("scroll", () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const y = window.scrollY;
+        const goingDown = y > lastY && y > 80;
+        bottomDock.classList.toggle("dockHidden", goingDown);
+        lastY = y;
+        ticking = false;
+      });
+    }, { passive: true });
+  }
+}
 backBtn.addEventListener("click", () => history.length ? window.history.back() : (location.hash = "#/"));
 searchBtn.addEventListener("click", () => (location.hash = "#/search"));
 bookmarkBtn.addEventListener("click", () => (location.hash = "#/bookmarks"));

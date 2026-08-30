@@ -9,6 +9,7 @@ const ChaturvedaSettings = {
     fontSize: "18",          // stored as bare number string, used as px
     fontFamily: "default",
     theme: "auto",
+    accentTheme: "gold",
     lineHeight: "normal",
     pageMargin: "normal",
     justifyText: true,
@@ -92,7 +93,25 @@ const ChaturvedaSettings = {
     else body.classList.remove("justify-text");
 
     this.applyTheme(s.theme);
+    this.applyAccent(s.accentTheme);
     return s;
+  },
+
+  // Sacred accent palette (gold/emerald/indigo) — independent from the
+  // light/dark `theme` setting above, so it lives on its own attribute
+  // (data-accent) to avoid clobbering body.dataset.theme.
+  applyAccent(accent) {
+    const root = document.documentElement;
+    if (accent && accent !== "gold") {
+      root.dataset.accent = accent;
+    } else {
+      delete root.dataset.accent;
+    }
+  },
+
+  async setAccentTheme(value) {
+    await this.save("accentTheme", value);
+    this.applyAccent(value);
   },
 
   applyTheme(theme) {
