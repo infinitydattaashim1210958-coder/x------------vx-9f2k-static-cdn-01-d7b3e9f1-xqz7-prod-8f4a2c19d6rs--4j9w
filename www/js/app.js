@@ -64,6 +64,24 @@ let kandaCache = {}; // ramayana: id -> kanda object
 ══════════════════════════════════════════════════════ */
 const QUICK_JUMP_LIST_LIMIT = 300; // beyond this, fall back to a number-input prompt
 
+/**
+ * Horizontal scripture-switcher tab row (Rigveda/Yajurveda/... or Kanda
+ * names or পর্ব names) — sits above the quick-jump picker bar on a
+ * reading screen so the top-level scripture/section can be changed
+ * without leaving the page. Single line, horizontal scroll for rows
+ * that don't fit (18 পর্ব tabs).
+ * tabs: [{ label, active, onSelect: () => void }]
+ */
+function renderScriptureTabBar(tabs) {
+  const bar = el(`<div class="scriptureTabBar"></div>`);
+  tabs.forEach((t) => {
+    const btn = el(`<button type="button" class="scriptureTab${t.active ? " active" : ""}">${t.label}</button>`);
+    btn.addEventListener("click", t.onSelect);
+    bar.appendChild(btn);
+  });
+  return bar;
+}
+
 function renderQuickJumpBar(fields) {
   const bar = el(`<div class="quickJumpBar"></div>`);
   fields.forEach((f) => {
@@ -457,20 +475,46 @@ async function screenHome() {
 }
 
 async function screenVedas() {
+  await ensureVedaCache();
+  const firstCode = Object.values(vedaCache)[0]?.code;
+  if (firstCode) { await jumpToFirstMantra(firstCode); return; }
   showBack(true);
   setTitle("বেদ");
-  await ensureVedaCache();
+  root.innerHTML = `<div class="empty">বেদের তথ্য পাওয়া যায়নি।</div>`;
+}
 
-  const vedaItems = Object.values(vedaCache).map((v) => {
-    const theme = VEDA_THEME[v.code] || { a: "#d4a24c", b: "#e8915c", tag: "" };
-    return `<a class="listItem" href="#/veda/${v.code}">
-      <span class="icon" style="color:${theme.a}">🕉</span>
-      <span class="label">${v.name}<div style="font-size:.75rem;color:var(--ash);">${theme.tag}</div></span>
-      <span class="arrow">›</span>
-    </a>`;
-  }).join("");
+/**
+ * Resolves and navigates to the very first mantra of a Veda (Mandala 1 ·
+ * Sukta 1 · Mantra 1, or the equivalent for vedas with fewer levels),
+ * so tapping "বেদ" (or a Veda tab) lands directly on the picker-bar
+ * reading screen instead of the Mandala/Sukta grid drill-down. Those
+ * grid screens (screenVeda/screenLevel1/etc, below) still exist and
+ * still work if something else links to them.
+ */
+async function jumpToFirstMantra(code) {
+  const veda = vedaCache[code];
+  if (!veda) return;
+  let firstRef = null;
 
-  root.innerHTML = `<div class="homeList">${vedaItems}</div>`;
+  if (veda.level1_label) {
+    const level1s = await window.VedaDB.getLevel1List(veda.id);
+    const l1 = level1s[0]?.level1;
+    if (l1 !== undefined) {
+      if (veda.level2_label) {
+        const level2s = await window.VedaDB.getLevel2List(veda.id, l1);
+        const list = await window.VedaDB.getMantraList(veda.id, l1, level2s[0]?.level2 ?? null);
+        firstRef = list[0]?.mantra_ref_id;
+      } else {
+        const list = await window.VedaDB.getMantraList(veda.id, l1, null);
+        firstRef = list[0]?.mantra_ref_id;
+      }
+    }
+  } else {
+    const list = await window.VedaDB.getMantraRange(veda.id, 1, 1);
+    firstRef = list[0]?.mantra_ref_id;
+  }
+
+  if (firstRef) location.hash = `#/mantra/${code}/${encodeURIComponent(firstRef)}`;
 }
 
 /* ══════════════════════════════════════════════════════
@@ -726,7 +770,17 @@ async function screenMantra(code, refEncodedWithQuery) {
       <a class="navBtn ${next ? "" : "disabled"}" ${next ? `href="${navUrl(next)}"` : ""}>পরের মন্ত্র →</a>
     </div>`;
 
-  if (quickJumpFields) root.prepend(renderQuickJumpBar(quickJumpFields));
+  if (quickJumpFields) {
+    const topBars = document.createElement("div");
+    topBars.appendChild(renderScriptureTabBar(
+      Object.values(vedaCache).map(v => ({
+        label: v.name, active: v.code === code,
+        onSelect: () => { if (v.code !== code) jumpToFirstMantra(v.code); },
+      }))
+    ));
+    topBars.appendChild(renderQuickJumpBar(quickJumpFields));
+    root.prepend(topBars);
+  }
 
   showBookmarkFab({
     title: veda.name,
@@ -960,27 +1014,27 @@ async function ramayanaDownloadGate(destHash = "#/ramayana") {
 
 async function screenRamayana() {
   if (!await ramayanaDownloadGate("#/ramayana")) return;
+  await ensureKandaCache();
+  const firstKandaId = Object.values(kandaCache)[0]?.id;
+  if (firstKandaId) { await jumpToFirstShloka(firstKandaId); return; }
   showBack(true);
   setTitle("বাল্মীকি রামায়ণ");
-  await ensureKandaCache();
+  root.innerHTML = `<div class="empty">রামায়ণের তথ্য পাওয়া যায়নি।</div>`;
+}
 
-  const kandaCards = Object.values(kandaCache).map((k) => {
-    const colors = RAMAYANA_KANDA_COLORS[(k.id - 1) % RAMAYANA_KANDA_COLORS.length];
-    return `
-      <a class="card" href="#/ramayana/kanda/${k.id}" style="--a:${colors.a};--b:${colors.b}">
-        <div class="tag">Kanda ${k.id}</div>
-        <h2>${k.name} Kanda</h2>
-        <div style="font-size:.85rem;opacity:.7;margin-top:4px;">${k.english_name} · ${k.sarga_count} Sargas</div>
-        <div class="arrow">→</div>
-      </a>`;
-  }).join("");
-
-  root.innerHTML = `
-    <div class="hero">
-      <div class="om">🏹</div>
-      <div class="sub">Valmiki Ramayana — Sanskrit · Word-by-word · Translation</div>
-    </div>
-    <div class="grid">${kandaCards}</div>`;
+/**
+ * Resolves and navigates to Sarga 1 · Shloka 1 of a Kanda, so tapping
+ * "রামায়ণ" (or a Kanda tab) lands directly on the picker-bar reading
+ * screen instead of the Sarga-list drill-down. screenRamayanaKanda()
+ * (below) still exists and still works if something else links to it.
+ */
+async function jumpToFirstShloka(kandaId) {
+  const sargas = await window.RamayanaDB.getSargasForKanda(kandaId);
+  if (!sargas[0]) return;
+  const shlokas = await window.RamayanaDB.getShlokasForSarga(sargas[0].id);
+  if (!shlokas[0]) return;
+  const ref = `K${kandaId}.S${sargas[0].id}.${shlokas[0].id}`;
+  location.hash = `#/ramayana/shloka/${encodeURIComponent(ref)}`;
 }
 
 async function screenRamayanaKanda(kandaId) {
@@ -1036,8 +1090,10 @@ async function screenRamayanaSarga(sargaId) {
 }
 
 /**
- * Builds the Kanda/Sarga/Shloka quick-jump field set for
- * screenRamayanaShloka()'s picker bar.
+ * Builds the Sarga/Shloka quick-jump field set for screenRamayanaShloka()'s
+ * picker bar. Kanda-switching is handled by the scriptureTabBar above it
+ * (see screenRamayanaShloka), not a field here, so there's no third
+ * "কাণ্ড" field duplicating that.
  */
 async function buildRamayanaQuickJumpFields(shloka, kanda) {
   const sargas = await window.RamayanaDB.getSargasForKanda(shloka.kanda_id);
@@ -1045,17 +1101,6 @@ async function buildRamayanaQuickJumpFields(shloka, kanda) {
   const shlokas = await window.RamayanaDB.getShlokasForSarga(shloka.sarga_id);
 
   return [
-    {
-      label: "কাণ্ড", current: shloka.kanda_id, currentLabel: kanda?.name || String(shloka.kanda_id),
-      options: async () => Object.values(kandaCache).map(k => ({ value: k.id, label: k.name })),
-      onSelect: async (val) => {
-        const newSargas = await window.RamayanaDB.getSargasForKanda(Number(val));
-        if (!newSargas[0]) return;
-        const newShlokas = await window.RamayanaDB.getShlokasForSarga(newSargas[0].id);
-        if (!newShlokas[0]) return;
-        location.hash = `#/ramayana/shloka/${encodeURIComponent(`K${val}.S${newSargas[0].id}.${newShlokas[0].id}`)}`;
-      },
-    },
     {
       label: "সর্গ", current: shloka.sarga_id, currentLabel: currentSarga ? String(currentSarga.chapter) : "…",
       options: async () => sargas.map(s => ({ value: s.id, label: String(s.chapter) })),
@@ -1153,6 +1198,18 @@ async function screenRamayanaShloka(refEncoded) {
 
   root.prepend(renderQuickJumpBar(quickJumpFields));
 
+  {
+    const topBars = document.createElement("div");
+    topBars.appendChild(renderScriptureTabBar(
+      Object.values(kandaCache).map(k => ({
+        label: k.name, active: k.id === shloka.kanda_id,
+        onSelect: () => { if (k.id !== shloka.kanda_id) jumpToFirstShloka(k.id); },
+      }))
+    ));
+    root.prepend(topBars);
+    topBars.appendChild(root.querySelector(".quickJumpBar"));
+  }
+
   showBookmarkFab({
     title: kanda?.name || "রামায়ণ",
     subtitle: `Sarga ${shloka.sarga_id} · Shloka ${shloka.id}`,
@@ -1228,26 +1285,27 @@ function mbSizeLabel(bytes) {
 }
 
 async function screenMahabharata() {
+  const firstParba = window.MahabharataDB.PARBAS[0];
+  if (firstParba) { await jumpToFirstAdhyay(firstParba.id); return; }
   showBack(true);
   setTitle("মহাভারত");
+  root.innerHTML = `<div class="empty">মহাভারতের তথ্য পাওয়া যায়নি।</div>`;
+}
 
-  const parbaCards = window.MahabharataDB.PARBAS.map((p) => {
-    const colors = MAHABHARATA_PARBA_COLORS[(p.parba_no - 1) % MAHABHARATA_PARBA_COLORS.length];
-    return `
-      <a class="card" href="#/mahabharata/parba/${p.id}" style="--a:${colors.a};--b:${colors.b}">
-        <div class="tag">পর্ব ${p.parba_no}</div>
-        <h2>${p.name}</h2>
-        <div style="font-size:.85rem;opacity:.7;margin-top:4px;">${p.adhyay_count} অধ্যায় · ${p.upakhyan_count} উপাখ্যান</div>
-        <div class="arrow">→</div>
-      </a>`;
-  }).join("");
-
-  root.innerHTML = `
-    <div class="hero">
-      <div class="om">⚔️</div>
-      <div class="sub">মহাভারত — কালীপ্রসন্ন সিংহ অনূদিত · অষ্টাদশ পর্ব</div>
-    </div>
-    <div class="grid">${parbaCards}</div>`;
+/**
+ * If this পর্ব is already downloaded, jumps straight to Adhyay 1
+ * (picker-bar reading screen) — so tapping "মহাভারত" (or a পর্ব tab)
+ * lands directly on the reading screen instead of the Adhyay-list
+ * drill-down. An un-downloaded পর্ব still falls back to the normal
+ * download-gate screen (screenMahabharataParba, below) — nothing to
+ * jump to until it's downloaded.
+ */
+async function jumpToFirstAdhyay(parbaId) {
+  const downloaded = await window.MahabharataDB.isPackDownloaded(parbaId);
+  if (!downloaded) { location.hash = `#/mahabharata/parba/${parbaId}`; return; }
+  const adhyayas = await window.MahabharataDB.getAdhyayasForParba(parbaId);
+  if (adhyayas[0]) location.hash = `#/mahabharata/parba/${parbaId}/adhyay/${adhyayas[0].id}`;
+  else location.hash = `#/mahabharata/parba/${parbaId}`;
 }
 
 async function screenMahabharataParba(parbaId) {
@@ -1294,7 +1352,7 @@ async function screenMahabharataParba(parbaId) {
       btn.textContent = "ডাউনলোড হচ্ছে…";
       try {
         await window.MahabharataDB.downloadPack(parbaId, msg => { if (statusEl) statusEl.textContent = msg; });
-        await screenMahabharataParba(parbaId);
+        await jumpToFirstAdhyay(parbaId);
       } catch (e) {
         btn.disabled = false;
         btn.textContent = "আবার চেষ্টা করুন";
@@ -1343,22 +1401,15 @@ async function screenMahabharataParba(parbaId) {
  * un-downloaded পর্ব goes to its download-gate screen instead of
  * trying to open an adhyay that isn't there yet.
  */
+/**
+ * Builds the Adhyay quick-jump field for screenMahabharataAdhyay()'s
+ * picker bar. পর্ব-switching is handled by the scriptureTabBar above it
+ * (see screenMahabharataAdhyay), not a field here.
+ */
 async function buildMahabharataQuickJumpFields(parbaId, adhyay) {
   const adhyayas = await window.MahabharataDB.getAdhyayasForParba(parbaId);
-  const currentParba = window.MahabharataDB.getParbaById(parbaId);
 
   return [
-    {
-      label: "পর্ব", current: parbaId, currentLabel: currentParba ? String(currentParba.parba_no) : String(parbaId),
-      options: async () => window.MahabharataDB.PARBAS.map(p => ({ value: p.id, label: String(p.parba_no) })),
-      onSelect: async (val) => {
-        const newParbaId = Number(val);
-        const dl = await window.MahabharataDB.isPackDownloaded(newParbaId);
-        if (!dl) { location.hash = `#/mahabharata/parba/${newParbaId}`; return; }
-        const list = await window.MahabharataDB.getAdhyayasForParba(newParbaId);
-        if (list[0]) location.hash = `#/mahabharata/parba/${newParbaId}/adhyay/${list[0].id}`;
-      },
-    },
     {
       label: "অধ্যায়", current: adhyay.id, currentLabel: String(adhyay.chapter_no),
       options: async () => adhyayas.map(a => ({ value: a.id, label: String(a.chapter_no) })),
@@ -1409,6 +1460,18 @@ async function screenMahabharataAdhyay(parbaId, adhyayId) {
     </div>`;
 
   root.prepend(renderQuickJumpBar(quickJumpFields));
+
+  {
+    const topBars = document.createElement("div");
+    topBars.appendChild(renderScriptureTabBar(
+      window.MahabharataDB.PARBAS.map(p => ({
+        label: `পর্ব ${p.parba_no}`, active: p.id === parbaId,
+        onSelect: () => { if (p.id !== parbaId) jumpToFirstAdhyay(p.id); },
+      }))
+    ));
+    root.prepend(topBars);
+    topBars.appendChild(root.querySelector(".quickJumpBar"));
+  }
 
   showBookmarkFab({
     title: parba.name,
