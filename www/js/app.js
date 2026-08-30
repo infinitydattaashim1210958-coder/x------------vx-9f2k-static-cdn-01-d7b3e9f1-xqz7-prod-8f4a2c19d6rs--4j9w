@@ -3,7 +3,7 @@
  * Covers: Vedas (4), Ramayana, Digital Library, Settings (all sections)
  */
 
-const APP_BUILD_VERSION = "v7.1-home-hierarchy-settings-fix-2026-07-18";
+const APP_BUILD_VERSION = "v1.0.0";
 
 const COPYRIGHT_HTML = `
   <div style="font-weight:bold;color:var(--gold-bright);">©️ Copyright &amp; Preservation</div>
