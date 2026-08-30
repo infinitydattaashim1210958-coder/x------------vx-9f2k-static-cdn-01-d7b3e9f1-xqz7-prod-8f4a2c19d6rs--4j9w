@@ -3,7 +3,7 @@
  * Covers: Vedas (4), Ramayana, Digital Library, Settings (all sections)
  */
 
-const APP_BUILD_VERSION = "v1.0.0";
+const APP_BUILD_VERSION = "v7.1-home-hierarchy-settings-fix-2026-07-18";
 
 const COPYRIGHT_HTML = `
   <div style="font-weight:bold;color:var(--gold-bright);">©️ Copyright &amp; Preservation</div>
@@ -46,6 +46,101 @@ const MAHABHARATA_PARBA_COLORS = [
 
 let vedaCache = {};
 let kandaCache = {}; // ramayana: id -> kanda object
+
+/* ══════════════════════════════════════════════════════
+   QUICK-JUMP PICKER BAR — v7.3
+   "MANDALA: 1  SUKTA: 1  MANTRA: 1" style bar that can be dropped on
+   top of any detail screen (mantra/shloka/adhyay). Tapping a field
+   opens a scrollable number-list overlay (or a plain number input for
+   very long ranges); picking a value calls the field's onSelect(value),
+   which is responsible for navigating (sets location.hash). Existing
+   list-based browsing screens are completely untouched by this —
+   purely additive, called explicitly from screenMantra() /
+   screenRamayanaShloka() / screenMahabharataAdhyay().
+   fields: [{ key, label, current, currentLabel, options: async()=>[{value,label}] | null,
+              range: {min,max} | null,  // used instead of options() when list would be too long
+              onSelect: (value) => void }]
+══════════════════════════════════════════════════════ */
+const QUICK_JUMP_LIST_LIMIT = 300; // beyond this, fall back to a number-input prompt
+
+function renderQuickJumpBar(fields) {
+  const bar = el(`<div class="quickJumpBar"></div>`);
+  fields.forEach((f) => {
+    const chip = el(`<button type="button" class="quickJumpField">
+      <span class="qjLabel">${f.label}</span><span class="qjValue">${f.currentLabel ?? f.current ?? "…"}</span>
+    </button>`);
+    chip.addEventListener("click", async () => {
+      if (f.range && !f.options) {
+        openNumberInputPrompt(f.label, f.range.min, f.range.max, f.current, f.onSelect);
+        return;
+      }
+      chip.classList.add("qjLoading");
+      let options = [];
+      try { options = await f.options(); }
+      catch (e) { console.warn("quickJump options failed:", e); }
+      finally { chip.classList.remove("qjLoading"); }
+      if (!options.length) return;
+      if (options.length > QUICK_JUMP_LIST_LIMIT) {
+        const vals = options.map(o => Number(o.value)).filter(v => !Number.isNaN(v));
+        openNumberInputPrompt(f.label, Math.min(...vals), Math.max(...vals), f.current, f.onSelect);
+        return;
+      }
+      openNumberPickerOverlay(f.label, options, f.current, f.onSelect);
+    });
+    bar.appendChild(chip);
+  });
+  return bar;
+}
+
+function closeAnyPickerOverlay() {
+  document.querySelectorAll(".numberPickerOverlay, .numberInputOverlay").forEach(o => o.remove());
+}
+
+function openNumberPickerOverlay(title, options, currentValue, onPick) {
+  closeAnyPickerOverlay();
+  const overlay = el(`
+    <div class="numberPickerOverlay">
+      <div class="numberPickerScrim"></div>
+      <div class="numberPickerSheet">
+        <div class="numberPickerTitle">${title} নির্বাচন করুন</div>
+        <div class="numberPickerList">
+          ${options.map(o => `<button type="button" class="numberPickerItem${String(o.value) === String(currentValue) ? " active" : ""}" data-value="${o.value}">${o.label}</button>`).join("")}
+        </div>
+      </div>
+    </div>`);
+  document.body.appendChild(overlay);
+  overlay.querySelector(".numberPickerScrim").addEventListener("click", closeAnyPickerOverlay);
+  overlay.querySelectorAll(".numberPickerItem").forEach(btn => {
+    btn.addEventListener("click", () => {
+      closeAnyPickerOverlay();
+      onPick(btn.dataset.value);
+    });
+  });
+  const activeEl = overlay.querySelector(".numberPickerItem.active");
+  if (activeEl) activeEl.scrollIntoView({ block: "center" });
+}
+
+function openNumberInputPrompt(title, min, max, currentValue, onPick) {
+  closeAnyPickerOverlay();
+  const overlay = el(`
+    <div class="numberInputOverlay">
+      <div class="numberPickerScrim"></div>
+      <div class="numberInputSheet">
+        <div class="numberPickerTitle" style="border:none;padding:0;">${title} (${min}–${max})</div>
+        <input type="number" min="${min}" max="${max}" value="${currentValue ?? min}" inputmode="numeric">
+        <button type="button">যান</button>
+      </div>
+    </div>`);
+  document.body.appendChild(overlay);
+  const input = overlay.querySelector("input");
+  overlay.querySelector(".numberPickerScrim").addEventListener("click", closeAnyPickerOverlay);
+  overlay.querySelector("button").addEventListener("click", () => {
+    const v = Math.max(min, Math.min(max, parseInt(input.value, 10) || min));
+    closeAnyPickerOverlay();
+    onPick(String(v));
+  });
+  input.focus();
+}
 
 backBtn.onclick = () => window.history.back();
 
@@ -316,7 +411,7 @@ const HOME_SECTIONS = [
 
 async function screenHome() {
   showBack(false);
-  setTitle("ओ३म् कृण्वन्तो विश्वमार्यम्");
+  setTitle("চতুর্বেদ সংকলন");
 
   const items = HOME_SECTIONS.map((s) => {
     if (s.soon) {
@@ -342,7 +437,8 @@ async function screenHome() {
 
   root.innerHTML = `
     <div class="hero">
-      <div class="om">ओ३म्</div>      
+      <div class="om">ओ३म्</div>
+      <div class="sub">The Four Vedas & Valmiki Ramayana — সম্পূর্ণ সংকলন</div>
     </div>
     ${continueCard}
     <div class="homeList">${items}</div>`;
@@ -454,6 +550,77 @@ function renderMantraList(veda, mantras) {
     </div>`;
 }
 
+/**
+ * Builds the Mandala/Sukta/Mantra (or however many levels this veda
+ * actually has) quick-jump field set for screenMantra()'s picker bar.
+ * Returns null for vedas with zero hierarchy levels AND a huge flat
+ * mantra count where a jump bar wouldn't add much over Prev/Next.
+ */
+async function buildVedaQuickJumpFields(code, veda, mantra) {
+  const fields = [];
+
+  if (veda.level1_label && veda.level2_label) {
+    // 3-level: Mandala / Sukta / Mantra-in-sukta
+    const groupList = await window.VedaDB.getMantraList(veda.id, mantra.level1, mantra.level2);
+    const localIndex = groupList.findIndex(m => m.id === mantra.id) + 1;
+
+    fields.push({
+      label: veda.level1_label, current: mantra.level1, currentLabel: mantra.level1,
+      options: async () => (await window.VedaDB.getLevel1List(veda.id)).map(r => ({ value: r.level1, label: r.level1 })),
+      onSelect: async (val) => {
+        const level2s = await window.VedaDB.getLevel2List(veda.id, val);
+        const list = await window.VedaDB.getMantraList(veda.id, val, level2s[0]?.level2 ?? null);
+        if (list[0]) location.hash = `#/mantra/${code}/${encodeURIComponent(list[0].mantra_ref_id)}`;
+      },
+    });
+    fields.push({
+      label: veda.level2_label, current: mantra.level2, currentLabel: mantra.level2,
+      options: async () => (await window.VedaDB.getLevel2List(veda.id, mantra.level1)).map(r => ({ value: r.level2, label: r.level2 })),
+      onSelect: async (val) => {
+        const list = await window.VedaDB.getMantraList(veda.id, mantra.level1, val);
+        if (list[0]) location.hash = `#/mantra/${code}/${encodeURIComponent(list[0].mantra_ref_id)}`;
+      },
+    });
+    fields.push({
+      label: veda.mantra_no_label || "মন্ত্র", current: localIndex, currentLabel: String(localIndex),
+      options: async () => groupList.map((m, i) => ({ value: m.mantra_ref_id, label: String(i + 1) })),
+      onSelect: (val) => { location.hash = `#/mantra/${code}/${encodeURIComponent(val)}`; },
+    });
+  } else if (veda.level1_label) {
+    // 2-level: level1 / Mantra-in-level1
+    const groupList = await window.VedaDB.getMantraList(veda.id, mantra.level1, null);
+    const localIndex = groupList.findIndex(m => m.id === mantra.id) + 1;
+
+    fields.push({
+      label: veda.level1_label, current: mantra.level1, currentLabel: mantra.level1,
+      options: async () => (await window.VedaDB.getLevel1List(veda.id)).map(r => ({ value: r.level1, label: r.level1 })),
+      onSelect: async (val) => {
+        const list = await window.VedaDB.getMantraList(veda.id, val, null);
+        if (list[0]) location.hash = `#/mantra/${code}/${encodeURIComponent(list[0].mantra_ref_id)}`;
+      },
+    });
+    fields.push({
+      label: veda.mantra_no_label || "মন্ত্র", current: localIndex, currentLabel: String(localIndex),
+      options: async () => groupList.map((m, i) => ({ value: m.mantra_ref_id, label: String(i + 1) })),
+      onSelect: (val) => { location.hash = `#/mantra/${code}/${encodeURIComponent(val)}`; },
+    });
+  } else {
+    // Flat: just a global mantra-number jump (number-input for large counts).
+    const total = await window.VedaDB.getMantraCount(veda.id);
+    if (total <= 1) return null;
+    fields.push({
+      label: veda.mantra_no_label || "মন্ত্র", current: mantra.mantra_no, currentLabel: String(mantra.mantra_no),
+      range: { min: 1, max: total },
+      onSelect: async (val) => {
+        const list = await window.VedaDB.getMantraRange(veda.id, Number(val), Number(val));
+        if (list[0]) location.hash = `#/mantra/${code}/${encodeURIComponent(list[0].mantra_ref_id)}`;
+      },
+    });
+  }
+
+  return fields;
+}
+
 async function screenMantra(code, refEncodedWithQuery) {
   await ensureVedaCache();
   const veda = vedaCache[code];
@@ -475,6 +642,7 @@ async function screenMantra(code, refEncodedWithQuery) {
   }
   const scholars = await window.VedaDB.getScholarsForMantra(veda.id, mantra.id);
   const { prev, next } = await window.VedaDB.getAdjacentMantras(veda.id, mantra.id);
+  const quickJumpFields = await buildVedaQuickJumpFields(code, veda, mantra);
 
   const meta = [
     mantra.devata ? `দেবতা: ${mantra.devata}` : "",
@@ -551,6 +719,8 @@ async function screenMantra(code, refEncodedWithQuery) {
       <a class="navBtn ${prev ? "" : "disabled"}" ${prev ? `href="${navUrl(prev)}"` : ""}>← আগের মন্ত্র</a>
       <a class="navBtn ${next ? "" : "disabled"}" ${next ? `href="${navUrl(next)}"` : ""}>পরের মন্ত্র →</a>
     </div>`;
+
+  if (quickJumpFields) root.prepend(renderQuickJumpBar(quickJumpFields));
 
   showBookmarkFab({
     title: veda.name,
@@ -859,6 +1029,46 @@ async function screenRamayanaSarga(sargaId) {
     </div>`;
 }
 
+/**
+ * Builds the Kanda/Sarga/Shloka quick-jump field set for
+ * screenRamayanaShloka()'s picker bar.
+ */
+async function buildRamayanaQuickJumpFields(shloka, kanda) {
+  const sargas = await window.RamayanaDB.getSargasForKanda(shloka.kanda_id);
+  const currentSarga = sargas.find(s => s.id === shloka.sarga_id);
+  const shlokas = await window.RamayanaDB.getShlokasForSarga(shloka.sarga_id);
+
+  return [
+    {
+      label: "কাণ্ড", current: shloka.kanda_id, currentLabel: kanda?.name || String(shloka.kanda_id),
+      options: async () => Object.values(kandaCache).map(k => ({ value: k.id, label: k.name })),
+      onSelect: async (val) => {
+        const newSargas = await window.RamayanaDB.getSargasForKanda(Number(val));
+        if (!newSargas[0]) return;
+        const newShlokas = await window.RamayanaDB.getShlokasForSarga(newSargas[0].id);
+        if (!newShlokas[0]) return;
+        location.hash = `#/ramayana/shloka/${encodeURIComponent(`K${val}.S${newSargas[0].id}.${newShlokas[0].id}`)}`;
+      },
+    },
+    {
+      label: "সর্গ", current: shloka.sarga_id, currentLabel: currentSarga ? String(currentSarga.chapter) : "…",
+      options: async () => sargas.map(s => ({ value: s.id, label: String(s.chapter) })),
+      onSelect: async (val) => {
+        const newShlokas = await window.RamayanaDB.getShlokasForSarga(Number(val));
+        if (!newShlokas[0]) return;
+        location.hash = `#/ramayana/shloka/${encodeURIComponent(`K${shloka.kanda_id}.S${val}.${newShlokas[0].id}`)}`;
+      },
+    },
+    {
+      label: "শ্লোক", current: shloka.id, currentLabel: String(shloka.id),
+      options: async () => shlokas.map(sh => ({ value: sh.id, label: String(sh.id) })),
+      onSelect: (val) => {
+        location.hash = `#/ramayana/shloka/${encodeURIComponent(`K${shloka.kanda_id}.S${shloka.sarga_id}.${val}`)}`;
+      },
+    },
+  ];
+}
+
 async function screenRamayanaShloka(refEncoded) {
   if (!await ramayanaDownloadGate(`#/ramayana/shloka/${refEncoded}`)) return;
   showBack(true);
@@ -876,6 +1086,7 @@ async function screenRamayanaShloka(refEncoded) {
   setTitle(`${kanda?.name || ""} · Sarga ${shloka.sarga_id} · ${shloka.id}`);
 
   const { prev, next } = await window.RamayanaDB.getAdjacentShlokas(shloka.id, shloka.sarga_id);
+  const quickJumpFields = await buildRamayanaQuickJumpFields(shloka, kanda);
 
   function navHref(shlokaId) {
     if (!shlokaId) return "";
@@ -933,6 +1144,8 @@ async function screenRamayanaShloka(refEncoded) {
       <a class="navBtn ${prev ? "" : "disabled"}" ${prev ? `href="${navHref(prev)}"` : ""}>← আগের শ্লোক</a>
       <a class="navBtn ${next ? "" : "disabled"}" ${next ? `href="${navHref(next)}"` : ""}>পরের শ্লোক →</a>
     </div>`;
+
+  root.prepend(renderQuickJumpBar(quickJumpFields));
 
   showBookmarkFab({
     title: kanda?.name || "রামায়ণ",
@@ -1118,6 +1331,36 @@ async function screenMahabharataParba(parbaId) {
   });
 }
 
+/**
+ * Builds the Parba/Adhyay quick-jump field set for
+ * screenMahabharataAdhyay()'s picker bar. Jumping to an
+ * un-downloaded পর্ব goes to its download-gate screen instead of
+ * trying to open an adhyay that isn't there yet.
+ */
+async function buildMahabharataQuickJumpFields(parbaId, adhyay) {
+  const adhyayas = await window.MahabharataDB.getAdhyayasForParba(parbaId);
+  const currentParba = window.MahabharataDB.getParbaById(parbaId);
+
+  return [
+    {
+      label: "পর্ব", current: parbaId, currentLabel: currentParba ? String(currentParba.parba_no) : String(parbaId),
+      options: async () => window.MahabharataDB.PARBAS.map(p => ({ value: p.id, label: String(p.parba_no) })),
+      onSelect: async (val) => {
+        const newParbaId = Number(val);
+        const dl = await window.MahabharataDB.isPackDownloaded(newParbaId);
+        if (!dl) { location.hash = `#/mahabharata/parba/${newParbaId}`; return; }
+        const list = await window.MahabharataDB.getAdhyayasForParba(newParbaId);
+        if (list[0]) location.hash = `#/mahabharata/parba/${newParbaId}/adhyay/${list[0].id}`;
+      },
+    },
+    {
+      label: "অধ্যায়", current: adhyay.id, currentLabel: String(adhyay.chapter_no),
+      options: async () => adhyayas.map(a => ({ value: a.id, label: String(a.chapter_no) })),
+      onSelect: (val) => { location.hash = `#/mahabharata/parba/${parbaId}/adhyay/${val}`; },
+    },
+  ];
+}
+
 async function screenMahabharataAdhyay(parbaId, adhyayId) {
   showBack(true);
   const parba = window.MahabharataDB.getParbaById(parbaId);
@@ -1135,6 +1378,7 @@ async function screenMahabharataAdhyay(parbaId, adhyayId) {
 
   const upakhyanas = await window.MahabharataDB.getUpakhyanasForAdhyay(parbaId, adhyayId);
   const { prev, next } = await window.MahabharataDB.getAdjacentAdhyayas(parbaId, adhyayId);
+  const quickJumpFields = await buildMahabharataQuickJumpFields(parbaId, adhyay);
 
   function navHref(id) {
     return id ? `#/mahabharata/parba/${parbaId}/adhyay/${id}` : "";
@@ -1157,6 +1401,8 @@ async function screenMahabharataAdhyay(parbaId, adhyayId) {
       <a class="navBtn ${prev ? "" : "disabled"}" ${prev ? `href="${navHref(prev)}"` : ""}>← আগের অধ্যায়</a>
       <a class="navBtn ${next ? "" : "disabled"}" ${next ? `href="${navHref(next)}"` : ""}>পরের অধ্যায় →</a>
     </div>`;
+
+  root.prepend(renderQuickJumpBar(quickJumpFields));
 
   showBookmarkFab({
     title: parba.name,
