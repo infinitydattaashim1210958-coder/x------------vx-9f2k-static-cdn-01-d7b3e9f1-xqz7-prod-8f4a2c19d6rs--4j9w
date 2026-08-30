@@ -73,9 +73,9 @@ const QUICK_JUMP_LIST_LIMIT = 300; // beyond this, fall back to a number-input p
  * tabs: [{ label, active, onSelect: () => void }]
  */
 function renderScriptureTabBar(tabs) {
-  const bar = el(`<div class="scriptureTabBar"></div>`);
+  const bar = el(`<div class="scriptureTabBar" role="tablist"></div>`);
   tabs.forEach((t) => {
-    const btn = el(`<button type="button" class="scriptureTab${t.active ? " active" : ""}">${t.label}</button>`);
+    const btn = el(`<button type="button" role="tab" aria-selected="${t.active}" class="scriptureTab${t.active ? " active" : ""}">${t.label}</button>`);
     btn.addEventListener("click", t.onSelect);
     bar.appendChild(btn);
   });
@@ -85,12 +85,13 @@ function renderScriptureTabBar(tabs) {
 function renderQuickJumpBar(fields) {
   const bar = el(`<div class="quickJumpBar"></div>`);
   fields.forEach((f) => {
-    const chip = el(`<button type="button" class="quickJumpField">
+    const chip = el(`<button type="button" class="quickJumpField" aria-haspopup="listbox" aria-expanded="false" aria-label="${f.label} নির্বাচন করুন">
       <span class="qjLabel">${f.label}</span><span class="qjValue">${f.currentLabel ?? f.current ?? "…"}</span>
     </button>`);
     chip.addEventListener("click", async () => {
       if (f.range && !f.options) {
-        openNumberInputPrompt(f.label, f.range.min, f.range.max, f.current, f.onSelect);
+        chip.setAttribute("aria-expanded", "true");
+        openNumberInputPrompt(f.label, f.range.min, f.range.max, f.current, f.onSelect, () => chip.setAttribute("aria-expanded", "false"));
         return;
       }
       chip.classList.add("qjLoading");
@@ -99,12 +100,14 @@ function renderQuickJumpBar(fields) {
       catch (e) { console.warn("quickJump options failed:", e); }
       finally { chip.classList.remove("qjLoading"); }
       if (!options.length) return;
+      chip.setAttribute("aria-expanded", "true");
+      const onClose = () => chip.setAttribute("aria-expanded", "false");
       if (options.length > QUICK_JUMP_LIST_LIMIT) {
         const vals = options.map(o => Number(o.value)).filter(v => !Number.isNaN(v));
-        openNumberInputPrompt(f.label, Math.min(...vals), Math.max(...vals), f.current, f.onSelect);
+        openNumberInputPrompt(f.label, Math.min(...vals), Math.max(...vals), f.current, f.onSelect, onClose);
         return;
       }
-      openNumberPickerOverlay(f.label, options, f.current, f.onSelect);
+      openNumberPickerOverlay(f.label, options, f.current, f.onSelect, onClose);
     });
     bar.appendChild(chip);
   });
@@ -113,53 +116,65 @@ function renderQuickJumpBar(fields) {
 
 function closeAnyPickerOverlay() {
   document.querySelectorAll(".numberPickerOverlay, .numberInputOverlay").forEach(o => o.remove());
+  document.querySelectorAll('.quickJumpField[aria-expanded="true"]').forEach(c => c.setAttribute("aria-expanded", "false"));
 }
 
-function openNumberPickerOverlay(title, options, currentValue, onPick) {
+function openNumberPickerOverlay(title, options, currentValue, onPick, onClose) {
   closeAnyPickerOverlay();
   const overlay = el(`
     <div class="numberPickerOverlay">
       <div class="numberPickerScrim"></div>
-      <div class="numberPickerSheet">
+      <div class="numberPickerSheet" role="listbox" aria-label="${title} নির্বাচন করুন">
         <div class="numberPickerTitle">${title} নির্বাচন করুন</div>
         <div class="numberPickerList">
-          ${options.map(o => `<button type="button" class="numberPickerItem${String(o.value) === String(currentValue) ? " active" : ""}" data-value="${o.value}">${o.label}</button>`).join("")}
+          ${options.map(o => `<button type="button" role="option" aria-selected="${String(o.value) === String(currentValue)}" class="numberPickerItem${String(o.value) === String(currentValue) ? " active" : ""}" data-value="${o.value}">${o.label}</button>`).join("")}
         </div>
       </div>
     </div>`);
   document.body.appendChild(overlay);
-  overlay.querySelector(".numberPickerScrim").addEventListener("click", closeAnyPickerOverlay);
+  const close = () => { onClose && onClose(); closeAnyPickerOverlay(); };
+  overlay.querySelector(".numberPickerScrim").addEventListener("click", close);
   overlay.querySelectorAll(".numberPickerItem").forEach(btn => {
     btn.addEventListener("click", () => {
-      closeAnyPickerOverlay();
+      close();
       onPick(btn.dataset.value);
     });
   });
   const activeEl = overlay.querySelector(".numberPickerItem.active");
-  if (activeEl) activeEl.scrollIntoView({ block: "center" });
+  if (activeEl) { activeEl.scrollIntoView({ block: "center" }); activeEl.focus(); }
+  else overlay.querySelector(".numberPickerItem")?.focus();
 }
 
-function openNumberInputPrompt(title, min, max, currentValue, onPick) {
+function openNumberInputPrompt(title, min, max, currentValue, onPick, onClose) {
   closeAnyPickerOverlay();
   const overlay = el(`
     <div class="numberInputOverlay">
       <div class="numberPickerScrim"></div>
-      <div class="numberInputSheet">
+      <div class="numberInputSheet" role="dialog" aria-label="${title} নির্বাচন করুন">
         <div class="numberPickerTitle" style="border:none;padding:0;">${title} (${min}–${max})</div>
-        <input type="number" min="${min}" max="${max}" value="${currentValue ?? min}" inputmode="numeric">
+        <input type="number" min="${min}" max="${max}" value="${currentValue ?? min}" inputmode="numeric" aria-label="${title} সংখ্যা লিখুন">
         <button type="button">যান</button>
       </div>
     </div>`);
   document.body.appendChild(overlay);
   const input = overlay.querySelector("input");
-  overlay.querySelector(".numberPickerScrim").addEventListener("click", closeAnyPickerOverlay);
+  const close = () => { onClose && onClose(); closeAnyPickerOverlay(); };
+  overlay.querySelector(".numberPickerScrim").addEventListener("click", close);
   overlay.querySelector("button").addEventListener("click", () => {
     const v = Math.max(min, Math.min(max, parseInt(input.value, 10) || min));
-    closeAnyPickerOverlay();
+    close();
     onPick(String(v));
   });
   input.focus();
 }
+
+// Escape closes whichever picker overlay is open (§ accessibility: dialogs
+// must be dismissible from the keyboard, not just by tapping the scrim).
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  const open = document.querySelector(".numberPickerOverlay, .numberInputOverlay");
+  if (open) closeAnyPickerOverlay();
+});
 
 backBtn.onclick = () => window.history.back();
 
@@ -213,12 +228,20 @@ function _readingProgressBar() {
   _readingProgressEl = document.createElement("div");
   _readingProgressEl.id = "readingProgress";
   document.body.appendChild(_readingProgressEl);
+  // rAF-batched, same pattern as the bottom dock's scroll handler — avoids
+  // running a layout read (scrollHeight) + write (style.width) on every
+  // single scroll event, which causes layout thrashing on long pages.
+  let ticking = false;
   window.addEventListener("scroll", () => {
-    if (!_readingProgressEl.classList.contains("visible")) return;
-    const doc = document.documentElement;
-    const max = doc.scrollHeight - window.innerHeight;
-    const pct = max > 0 ? (window.scrollY / max) * 100 : 0;
-    _readingProgressEl.style.width = `${Math.max(0, Math.min(100, pct))}%`;
+    if (!_readingProgressEl.classList.contains("visible") || ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      const doc = document.documentElement;
+      const max = doc.scrollHeight - window.innerHeight;
+      const pct = max > 0 ? (window.scrollY / max) * 100 : 0;
+      _readingProgressEl.style.width = `${Math.max(0, Math.min(100, pct))}%`;
+      ticking = false;
+    });
   }, { passive: true });
   return _readingProgressEl;
 }
@@ -3019,7 +3042,12 @@ function updateDockActive() {
       bestLen = route.length;
     }
   });
-  items.forEach((btn) => btn.classList.toggle("active", btn === bestMatch && bestLen >= 0));
+  items.forEach((btn) => {
+    const isActive = btn === bestMatch && bestLen >= 0;
+    btn.classList.toggle("active", isActive);
+    if (isActive) btn.setAttribute("aria-current", "page");
+    else btn.removeAttribute("aria-current");
+  });
 }
 
 if (bottomDock) {
