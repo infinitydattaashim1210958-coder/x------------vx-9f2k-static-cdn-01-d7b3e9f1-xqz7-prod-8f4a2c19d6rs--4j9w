@@ -738,11 +738,27 @@ body::before {
 .dockItem.active .dockIcon{ transform:translateY(-1px) scale(1.08); filter:drop-shadow(0 0 8px var(--glow-primary)); }
 .dockItem:active .dockIcon{ transform:scale(.85); }
 
+/* -- 14. Scripture switcher tabs (Rigveda/Yajurveda/... or Kanda/পর্ব names) --
+   Sits above the quick-jump picker bar on a reading screen; horizontal
+   scroll for rows that don't fit (18 পর্ব tabs), single line, no wrap. */
+.scriptureTabBar {
+  display: flex; gap: 8px; padding: 10px 16px; overflow-x: auto;
+  background: var(--panel); border-bottom: 1px solid var(--line);
+  white-space: nowrap; -webkit-overflow-scrolling: touch;
+}
+.scriptureTab {
+  flex: 0 0 auto; padding: 8px 16px; border-radius: 20px; border: 1px solid var(--panel-border);
+  background: transparent; color: var(--parchment); font-family: inherit; font-size: .85rem;
+  white-space: nowrap; cursor: pointer; transition: background .2s ease, border-color .2s ease;
+}
+.scriptureTab.active { background: var(--gold); color: #1a1200; border-color: var(--gold); font-weight: 700; }
+.scriptureTab:active { transform: scale(.96); }
+
 /* -- Respect reduced-motion for everything added above -- */
 @media (prefers-reduced-motion: reduce) {
   body::before, #app.pageEnter, .mantraDetail > *, .sanskritBlock,
   .bookmarkPop, .sacredParticles span, .searchBox, .numberPickerSheet { animation: none !important; }
   .listItem::after, .numChip::after, .rangeItem::after, .mantraItem::after,
   .bookCard::after, .item::after, .tabBtn::after, .langChip::after { display: none; }
-  .bottomDock, .dockItem .dockIcon, .categoryChip { transition: none !important; }
+  .bottomDock, .dockItem .dockIcon, .categoryChip, .scriptureTab { transition: none !important; }
 }
