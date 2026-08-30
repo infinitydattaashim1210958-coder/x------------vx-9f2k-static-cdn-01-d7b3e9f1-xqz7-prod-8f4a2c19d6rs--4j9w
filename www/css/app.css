@@ -1,12 +1,41 @@
 :root{
   --void:#07080a;
-  --panel:#101318;
-  --line:rgba(200,190,170,.12);
+  --panel:rgba(20,17,14,.72);
+  --panel-border:rgba(212,162,76,.18);
+  --line:var(--panel-border);
   --gold:#d4a24c;
   --gold-bright:#f0c26a;
   --parchment:#ede6d6;
   --ash:#8d92a0;
   --ash-dim:#5a5f6c;
+
+  --glow-primary:rgba(240,194,106,.22);
+  --glow-secondary:rgba(79,140,107,.14);
+  --card-radius:14px;
+  --transition-smooth:cubic-bezier(.2,.8,.2,1);
+  --dock-height:64px;
+
+  --font-sanskrit:'Noto Serif Devanagari','Sanskrit Text',Georgia,serif;
+  --font-bengali:'Noto Serif Bengali','Vrinda','Kalpurush',Georgia,serif;
+  --font-latin:'Cinzel',Georgia,serif;
+}
+
+/* -- Sacred accent palettes — independent of light/dark reading theme.
+      Set by ChaturvedaSettings.applyAccent() via [data-accent] on <html>.
+      Default (no attribute) = gold, values above. -- */
+[data-accent="emerald"]{
+  --gold:#4f8c6b;
+  --gold-bright:#7ac99a;
+  --panel-border:rgba(79,140,107,.25);
+  --glow-primary:rgba(122,201,154,.22);
+  --glow-secondary:rgba(212,162,76,.12);
+}
+[data-accent="indigo"]{
+  --gold:#6482dc;
+  --gold-bright:#94b0f8;
+  --panel-border:rgba(100,130,220,.22);
+  --glow-primary:rgba(148,176,248,.22);
+  --glow-secondary:rgba(180,120,235,.15);
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;}
@@ -29,9 +58,11 @@ a{color:inherit;text-decoration:none;}
   position:sticky; top:0; z-index:10;
   display:flex; align-items:center; gap:12px;
   padding:16px 14px;
-  background:rgba(7,8,10,.92);
-  backdrop-filter:blur(6px);
+  padding-top:calc(16px + env(safe-area-inset-top));
+  background:rgba(7,8,10,.82);
+  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
   border-bottom:1px solid var(--line);
+  isolation:isolate;
 }
 .iconBtn{
   background:none; border:none; color:var(--gold);
@@ -46,7 +77,15 @@ a{color:inherit;text-decoration:none;}
   flex:1; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 
-#app{ padding:22px 16px 60px; max-width:760px; margin:0 auto; min-height:70vh; }
+#app{ padding:22px 16px calc(96px + env(safe-area-inset-bottom)); max-width:760px; margin:0 auto; min-height:70vh; }
+
+/* -- Glassmorphic surfaces (curated set — not applied blanket-wide,
+      per performance guidance: only the panels users actually look at). -- */
+.section, .mantraDetail, .bookCard, .card, .quickJumpBar, .homeList,
+.categoryBar, .bottomDock{
+  backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+  isolation:isolate;
+}
 
 .bookReaderFrame{
   position:fixed; left:0; right:0; bottom:0;
@@ -59,6 +98,26 @@ a{color:inherit;text-decoration:none;}
 .hero{ text-align:center; padding:20px 0 30px; }
 .om{ font-size:2.4rem; color:var(--gold); opacity:.85; text-shadow:0 0 40px rgba(212,162,76,.4); margin-bottom:10px; }
 .hero .sub{ font-size:.98rem; color:var(--ash); font-style:italic; line-height:1.6; }
+
+/* ---- Category quick-filter chips (Home) ---- */
+.categoryBar{
+  display:flex; gap:10px; overflow-x:auto; padding:4px 2px 18px;
+  -ms-overflow-style:none; scrollbar-width:none;
+}
+.categoryBar::-webkit-scrollbar{ display:none; }
+.categoryChip{
+  flex:0 0 auto; display:flex; align-items:center; gap:8px;
+  background:var(--panel); border:1px solid var(--panel-border);
+  border-radius:20px; padding:10px 16px; color:var(--parchment);
+  font-size:.88rem; font-weight:600; white-space:nowrap;
+  transition:border-color .2s ease, box-shadow .2s ease, transform .15s var(--transition-smooth);
+}
+.categoryChip:active{ transform:scale(.96); }
+.categoryChip .chipIcon{ font-size:1rem; }
+.categoryChip.active{
+  border-color:var(--gold); color:var(--gold-bright);
+  box-shadow:0 0 0 1px var(--gold) inset, 0 0 16px var(--glow-primary);
+}
 
 .grid{ display:grid; grid-template-columns:1fr; gap:16px; }
 
@@ -128,6 +187,8 @@ a{color:inherit;text-decoration:none;}
   font-size: calc(var(--reader-font-size, 18px) * 1.35);
   line-height:1.9;
   color:var(--gold-bright);
+  font-family:var(--font-sanskrit);
+  letter-spacing:.01em;
 }
 
 .mantraMeta{ margin-top:14px; font-size:.82rem; color:var(--ash); }
@@ -423,7 +484,7 @@ a{color:inherit;text-decoration:none;}
 .addBookmarkFab {
   position: fixed;
   right: 18px;
-  bottom: 24px;
+  bottom: calc(24px + var(--dock-height) + env(safe-area-inset-bottom));
   width: 52px;
   height: 52px;
   border-radius: 50%;
@@ -652,10 +713,36 @@ body::before {
   border-radius: 8px; font-weight: 700; cursor: pointer;
 }
 
+/* -- 13. Bottom floating navigation dock — persistent mobile nav -- */
+.bottomDock{
+  position:fixed; left:14px; right:14px;
+  bottom:calc(14px + env(safe-area-inset-bottom));
+  height:var(--dock-height);
+  display:flex; align-items:stretch; justify-content:space-around;
+  background:rgba(7,8,10,.82);
+  border:1px solid var(--panel-border);
+  border-radius:22px;
+  box-shadow:0 10px 30px rgba(0,0,0,.35);
+  z-index:40;
+  transition:transform .3s var(--transition-smooth), opacity .3s ease;
+}
+.bottomDock.dockHidden{ transform:translateY(calc(100% + 24px + env(safe-area-inset-bottom))); opacity:0; }
+.dockItem{
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:2px; background:none; border:none; color:var(--ash);
+  font-size:.66rem; font-family:inherit; cursor:pointer;
+  position:relative; overflow:hidden; min-width:44px;
+}
+.dockItem .dockIcon{ font-size:1.25rem; line-height:1; transition:transform .2s var(--transition-smooth); }
+.dockItem.active{ color:var(--gold-bright); }
+.dockItem.active .dockIcon{ transform:translateY(-1px) scale(1.08); filter:drop-shadow(0 0 8px var(--glow-primary)); }
+.dockItem:active .dockIcon{ transform:scale(.85); }
+
 /* -- Respect reduced-motion for everything added above -- */
 @media (prefers-reduced-motion: reduce) {
   body::before, #app.pageEnter, .mantraDetail > *, .sanskritBlock,
   .bookmarkPop, .sacredParticles span, .searchBox, .numberPickerSheet { animation: none !important; }
   .listItem::after, .numChip::after, .rangeItem::after, .mantraItem::after,
   .bookCard::after, .item::after, .tabBtn::after, .langChip::after { display: none; }
+  .bottomDock, .dockItem .dockIcon, .categoryChip { transition: none !important; }
 }
