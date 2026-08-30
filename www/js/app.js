@@ -1359,6 +1359,13 @@ async function screenMahabharataParba(parbaId) {
         statusEl.textContent = "ব্যর্থ: " + (e.message || e);
       }
     });
+
+    root.prepend(renderScriptureTabBar(
+      window.MahabharataDB.PARBAS.map(p => ({
+        label: `পর্ব ${p.parba_no}`, active: p.id === parbaId,
+        onSelect: () => { if (p.id !== parbaId) jumpToFirstAdhyay(p.id); },
+      }))
+    ));
     return;
   }
 
@@ -1393,6 +1400,13 @@ async function screenMahabharataParba(parbaId) {
     await window.MahabharataDB.deletePack(parbaId);
     await screenMahabharataParba(parbaId);
   });
+
+  root.prepend(renderScriptureTabBar(
+    window.MahabharataDB.PARBAS.map(p => ({
+      label: `পর্ব ${p.parba_no}`, active: p.id === parbaId,
+      onSelect: () => { if (p.id !== parbaId) jumpToFirstAdhyay(p.id); },
+    }))
+  ));
 }
 
 /**
