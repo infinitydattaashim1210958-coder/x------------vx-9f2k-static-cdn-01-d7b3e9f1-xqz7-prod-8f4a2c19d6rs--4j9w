@@ -316,7 +316,7 @@ const HOME_SECTIONS = [
 
 async function screenHome() {
   showBack(false);
-  setTitle("চতুর্বেদ সংকলন");
+  setTitle("ओ३म् कृण्वन्तो विश्वमार्यम्");
 
   const items = HOME_SECTIONS.map((s) => {
     if (s.soon) {
@@ -342,8 +342,7 @@ async function screenHome() {
 
   root.innerHTML = `
     <div class="hero">
-      <div class="om">ओ३म्</div>
-      <div class="sub">The Four Vedas & Valmiki Ramayana — সম্পূর্ণ সংকলন</div>
+      <div class="om">ओ३म्</div>      
     </div>
     ${continueCard}
     <div class="homeList">${items}</div>`;
@@ -2666,7 +2665,7 @@ async function boot() {
         <span></span><span></span><span></span><span></span><span></span><span></span>
       </div>
       <div class="omBig">ओ३म्</div>
-      <div class="loadingText">ডাটাবেস লোড হচ্ছে…</div>
+      <div class="loadingText">নমস্কার, ডাটাবেস লোড হচ্ছে…</div>
       <div class="loadingVersion">${APP_BUILD_VERSION}</div>
     </div>`;
   await ChaturvedaSettings.apply();
