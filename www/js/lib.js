@@ -18,9 +18,16 @@ const MANIFEST_URL = REPO_RAW_BASE + "manifest.json";
 
 const MANIFEST_KEY = "digitalLibraryManifest"; // tracks locally-downloaded books
 
-function fsPlugin() {
-  return window.Capacitor.Plugins.Filesystem;
-}
+// fsPlugin() is intentionally NOT redeclared here — db.js (loaded first)
+// already defines a global `function fsPlugin()` with proper fallback
+// checks and a warning if the Filesystem plugin is unavailable. This file
+// used to define its own bare-bones copy (`return window.Capacitor.Plugins
+// .Filesystem;`, no safety checks), which — because lib.js loads *after*
+// db.js — silently overwrote db.js's safer version app-wide (function
+// redeclarations don't throw, the last one just wins). Any file-write
+// code elsewhere in db.js calling fsPlugin() was unknowingly using this
+// unguarded version instead. Removed; calls below now resolve to db.js's
+// global fsPlugin().
 function prefsPlugin() {
   return window.Capacitor.Plugins.Preferences;
 }
@@ -93,14 +100,9 @@ async function saveManifest(manifest) {
   await prefsPlugin().set({ key: MANIFEST_KEY, value: JSON.stringify(manifest) });
 }
 
-function blobToBase64(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result.split(",")[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-}
+// blobToBase64() is intentionally NOT redeclared here either, for the
+// same reason as fsPlugin() above — db.js already defines a global,
+// behaviorally-identical version. Calls below resolve to db.js's copy.
 
 async function downloadBook(book, onProgress) {
   if (book.type === "db") return downloadDbBook(book, onProgress);

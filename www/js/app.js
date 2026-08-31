@@ -20,8 +20,14 @@ const bookmarkBtn = document.getElementById("bookmarkBtn");
 const addBookmarkFab = document.getElementById("addBookmarkFab");
 const bottomDock = document.getElementById("bottomDock");
 const chapterSelectorBtn = document.getElementById("chapterSelectorBtn");
-// §36 — shared HTML-escaping helper (defined in db.js, loaded first)
-const escapeHtml = window.SwadhyayEscapeHtml || (s => String(s ?? ""));
+// §36 — shared HTML-escaping helper: `escapeHtml` is already a global
+// function declared in db.js (loaded first), so it's used directly below
+// with no local redeclaration. (Redeclaring it here as `const escapeHtml`
+// used to collide with db.js's `function escapeHtml` and threw a
+// SyntaxError — "Identifier 'escapeHtml' has already been declared" —
+// which silently killed this entire script on load. That's why the app
+// showed a permanently blank #app with a working header/bottom dock:
+// boot() and router() never even got registered as event listeners.)
 
 // §24 — current chapter list is stored here by each reader screen
 // so the header button + pull-down gesture can open the selector.
