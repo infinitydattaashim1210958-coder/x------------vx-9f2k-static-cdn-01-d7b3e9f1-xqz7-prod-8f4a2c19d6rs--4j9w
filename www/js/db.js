@@ -15,6 +15,45 @@
 
 const CORE_DB_NAME = "core";
 
+/**
+ * §36 security helper — escapes DB/pack-sourced text before it is ever
+ * interpolated into an innerHTML template. Bhashya packs are downloaded
+ * from a remote repo at runtime, so their field values are not assumed
+ * to be safe just because they live in a local SQLite pack.
+ */
+function escapeHtml(str) {
+  if (str === null || str === undefined) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
+ * §27/§34 data normalization — every mantra row read from core.db passes
+ * through here so optional fields the current schema doesn't have yet
+ * (transliteration, audioTrack) resolve to safe, explicit defaults
+ * instead of being undefined in some call sites and missing in others.
+ * Existing columns are preserved untouched (…record spread) so nothing
+ * about current rendering changes; this only adds forward-compatible
+ * fields for future data without fabricating content today.
+ */
+function normalizeMantraRecord(record) {
+  if (!record) return record;
+  return {
+    ...record,
+    transliteration: record.transliteration ?? record.transliteration_text ?? null,
+    audioTrack: record.audio_track_url
+      ? { mediaUrl: record.audio_track_url, durationSeconds: record.audio_duration_seconds ?? 0, timestampMarkers: [] }
+      : null,
+  };
+}
+
+window.SwadhyayEscapeHtml = escapeHtml;
+window.SwadhyayNormalizeMantra = normalizeMantraRecord;
+
 
 const PACK_RELEASE_BASE =
   "https://raw.githubusercontent.com/infinitydattaashim1210958-coder/-------------vx-9f2k-static-cdn-01-d7b3e9f1-xqz7-prod-8f4a2c19d6rs--4j9w/main/bhashya_packs/";
@@ -577,7 +616,7 @@ async function getMantraByRef(
 
 
 
-  return rows[0] || null;
+  return normalizeMantraRecord(rows[0] || null);
 
 
 }

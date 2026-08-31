@@ -5,7 +5,9 @@
  * Mahabharata adhyays, Digital Library html_book) without knowing
  * anything about their internal DB structure. A bookmark is just:
  *
- *   { id, hash, title, subtitle, preview, scrollPercent, createdAt }
+ *   { id, hash, title, subtitle, preview, note, scrollPercent, createdAt }
+ *
+ * `note` is optional free text the user can attach after bookmarking.
  *
  * `hash` is the app's own router hash (e.g. "#/mantra/rigveda/1.1.1",
  * "#/ramayana/shloka/1.1.1", "#/mahabharata/parba/301/adhyay/5",
@@ -67,6 +69,7 @@ const BookmarkManager = {
 
   // Adding again at the same hash updates that bookmark's scroll
   // position/timestamp in place instead of creating a duplicate.
+  // Any existing `note` on the bookmark is preserved across re-adds.
   async add({ hash, title, subtitle, preview, scrollPercent }) {
     const items = await this._load();
     const existingIdx = items.findIndex(b => b.hash === hash);
@@ -78,6 +81,7 @@ const BookmarkManager = {
       title: title || "",
       subtitle: subtitle || "",
       preview: (preview || "").slice(0, 140),
+      note: existingIdx !== -1 ? (items[existingIdx].note || "") : "",
       scrollPercent: Math.max(0, Math.min(100, Math.round(scrollPercent || 0))),
       createdAt: Date.now(),
     };
@@ -86,6 +90,18 @@ const BookmarkManager = {
     this._cache = items;
     await this._save();
     return bookmark;
+  },
+
+  // Update or clear the note on an existing bookmark (by hash).
+  // Creates the bookmark first if it does not exist yet.
+  async updateNote(hash, noteText) {
+    const items = await this._load();
+    const idx = items.findIndex(b => b.hash === hash);
+    if (idx === -1) return; // only update existing bookmarks
+    items[idx] = { ...items[idx], note: (noteText || "").slice(0, 500) };
+    this._cache = items;
+    await this._save();
+    return items[idx];
   },
 
   async remove(id) {

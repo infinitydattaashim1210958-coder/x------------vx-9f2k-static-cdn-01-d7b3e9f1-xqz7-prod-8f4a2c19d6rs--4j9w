@@ -19,6 +19,43 @@ const settingsBtn = document.getElementById("settingsBtn");
 const bookmarkBtn = document.getElementById("bookmarkBtn");
 const addBookmarkFab = document.getElementById("addBookmarkFab");
 const bottomDock = document.getElementById("bottomDock");
+const chapterSelectorBtn = document.getElementById("chapterSelectorBtn");
+// §36 — shared HTML-escaping helper (defined in db.js, loaded first)
+const escapeHtml = window.SwadhyayEscapeHtml || (s => String(s ?? ""));
+
+// §24 — current chapter list is stored here by each reader screen
+// so the header button + pull-down gesture can open the selector.
+let _currentChapters = [];     // [{ label, href }]
+let _currentChapterHref = "";  // href of the active chapter
+
+function registerChapterList(chapters, currentHref) {
+  _currentChapters = chapters || [];
+  _currentChapterHref = currentHref || location.hash;
+  if (chapterSelectorBtn) {
+    chapterSelectorBtn.style.display = _currentChapters.length > 1 ? "" : "none";
+  }
+}
+
+function clearChapterList() {
+  _currentChapters = [];
+  _currentChapterHref = "";
+  if (chapterSelectorBtn) chapterSelectorBtn.style.display = "none";
+}
+
+if (chapterSelectorBtn) {
+  chapterSelectorBtn.addEventListener("click", () => {
+    if (window.SwadhyayGestures?.openChapterSelector) {
+      window.SwadhyayGestures.openChapterSelector(_currentChapters, _currentChapterHref);
+    }
+  });
+}
+
+// §24 — Respond to pull-down gesture from gestures.js
+document.addEventListener("swadhyay:requestchapters", () => {
+  if (_currentChapters.length > 1 && window.SwadhyayGestures?.openChapterSelector) {
+    window.SwadhyayGestures.openChapterSelector(_currentChapters, _currentChapterHref);
+  }
+});
 
 const VEDA_THEME = {
   rigveda:     { a: "#d4a24c", b: "#e8915c", tag: "Veda I · Knowledge" },
@@ -64,28 +101,10 @@ let kandaCache = {}; // ramayana: id -> kanda object
 ══════════════════════════════════════════════════════ */
 const QUICK_JUMP_LIST_LIMIT = 300; // beyond this, fall back to a number-input prompt
 
-/**
- * Horizontal scripture-switcher tab row (Rigveda/Yajurveda/... or Kanda
- * names or পর্ব names) — sits above the quick-jump picker bar on a
- * reading screen so the top-level scripture/section can be changed
- * without leaving the page. Single line, horizontal scroll for rows
- * that don't fit (18 পর্ব tabs).
- * tabs: [{ label, active, onSelect: () => void }]
- */
-function renderScriptureTabBar(tabs) {
-  const bar = el(`<div class="scriptureTabBar" role="tablist"></div>`);
-  tabs.forEach((t) => {
-    const btn = el(`<button type="button" role="tab" aria-selected="${t.active}" class="scriptureTab${t.active ? " active" : ""}">${t.label}</button>`);
-    btn.addEventListener("click", t.onSelect);
-    bar.appendChild(btn);
-  });
-  return bar;
-}
-
 function renderQuickJumpBar(fields) {
   const bar = el(`<div class="quickJumpBar"></div>`);
   fields.forEach((f) => {
-    const chip = el(`<button type="button" class="quickJumpField" aria-haspopup="listbox" aria-expanded="false" aria-label="${f.label} নির্বাচন করুন">
+    const chip = el(`<button type="button" class="quickJumpField">
       <span class="qjLabel">${f.label}</span><span class="qjValue">${f.currentLabel ?? f.current ?? "…"}</span>
     </button>`);
     chip.addEventListener("click", async () => {
@@ -116,7 +135,6 @@ function renderQuickJumpBar(fields) {
 
 function closeAnyPickerOverlay() {
   document.querySelectorAll(".numberPickerOverlay, .numberInputOverlay").forEach(o => o.remove());
-  document.querySelectorAll('.quickJumpField[aria-expanded="true"]').forEach(c => c.setAttribute("aria-expanded", "false"));
 }
 
 function openNumberPickerOverlay(title, options, currentValue, onPick, onClose) {
@@ -124,25 +142,28 @@ function openNumberPickerOverlay(title, options, currentValue, onPick, onClose) 
   const overlay = el(`
     <div class="numberPickerOverlay">
       <div class="numberPickerScrim"></div>
-      <div class="numberPickerSheet" role="listbox" aria-label="${title} নির্বাচন করুন">
+      <div class="numberPickerSheet">
         <div class="numberPickerTitle">${title} নির্বাচন করুন</div>
         <div class="numberPickerList">
-          ${options.map(o => `<button type="button" role="option" aria-selected="${String(o.value) === String(currentValue)}" class="numberPickerItem${String(o.value) === String(currentValue) ? " active" : ""}" data-value="${o.value}">${o.label}</button>`).join("")}
+          ${options.map(o => `<button type="button" class="numberPickerItem${String(o.value) === String(currentValue) ? " active" : ""}" data-value="${o.value}">${o.label}</button>`).join("")}
         </div>
       </div>
     </div>`);
   document.body.appendChild(overlay);
-  const close = () => { onClose && onClose(); closeAnyPickerOverlay(); };
-  overlay.querySelector(".numberPickerScrim").addEventListener("click", close);
+  overlay.querySelector(".numberPickerScrim").addEventListener("click", closeAnyPickerOverlay);
   overlay.querySelectorAll(".numberPickerItem").forEach(btn => {
     btn.addEventListener("click", () => {
-      close();
+      closeAnyPickerOverlay();
+      if (onClose) onClose();
       onPick(btn.dataset.value);
     });
   });
+  overlay.querySelector(".numberPickerScrim")?.addEventListener("click", () => {
+    closeAnyPickerOverlay();
+    if (onClose) onClose();
+  });
   const activeEl = overlay.querySelector(".numberPickerItem.active");
-  if (activeEl) { activeEl.scrollIntoView({ block: "center" }); activeEl.focus(); }
-  else overlay.querySelector(".numberPickerItem")?.focus();
+  if (activeEl) activeEl.scrollIntoView({ block: "center" });
 }
 
 function openNumberInputPrompt(title, min, max, currentValue, onPick, onClose) {
@@ -150,31 +171,23 @@ function openNumberInputPrompt(title, min, max, currentValue, onPick, onClose) {
   const overlay = el(`
     <div class="numberInputOverlay">
       <div class="numberPickerScrim"></div>
-      <div class="numberInputSheet" role="dialog" aria-label="${title} নির্বাচন করুন">
+      <div class="numberInputSheet">
         <div class="numberPickerTitle" style="border:none;padding:0;">${title} (${min}–${max})</div>
-        <input type="number" min="${min}" max="${max}" value="${currentValue ?? min}" inputmode="numeric" aria-label="${title} সংখ্যা লিখুন">
+        <input type="number" min="${min}" max="${max}" value="${currentValue ?? min}" inputmode="numeric">
         <button type="button">যান</button>
       </div>
     </div>`);
   document.body.appendChild(overlay);
   const input = overlay.querySelector("input");
-  const close = () => { onClose && onClose(); closeAnyPickerOverlay(); };
-  overlay.querySelector(".numberPickerScrim").addEventListener("click", close);
+  overlay.querySelector(".numberPickerScrim").addEventListener("click", () => { closeAnyPickerOverlay(); if (onClose) onClose(); });
   overlay.querySelector("button").addEventListener("click", () => {
     const v = Math.max(min, Math.min(max, parseInt(input.value, 10) || min));
-    close();
+    closeAnyPickerOverlay();
+    if (onClose) onClose();
     onPick(String(v));
   });
   input.focus();
 }
-
-// Escape closes whichever picker overlay is open (§ accessibility: dialogs
-// must be dismissible from the keyboard, not just by tapping the scrim).
-document.addEventListener("keydown", (e) => {
-  if (e.key !== "Escape") return;
-  const open = document.querySelector(".numberPickerOverlay, .numberInputOverlay");
-  if (open) closeAnyPickerOverlay();
-});
 
 backBtn.onclick = () => window.history.back();
 
@@ -185,6 +198,21 @@ function el(html) {
   const t = document.createElement("template");
   t.innerHTML = html.trim();
   return t.content.firstChild;
+}
+
+/**
+ * Scripture tab bar — shown at the top of every reader screen so users
+ * can switch between Vedas (or Kandas/Parbas) without going back to home.
+ * Tabs are injected via root.prepend(topBars) after the screen renders.
+ */
+function renderScriptureTabBar(tabs) {
+  const bar = el(`<div class="scriptureTabBar" role="tablist"></div>`);
+  tabs.forEach((t) => {
+    const btn = el(`<button type="button" role="tab" aria-selected="${t.active}" class="scriptureTab${t.active ? " active" : ""}">${t.label}</button>`);
+    btn.addEventListener("click", t.onSelect);
+    bar.appendChild(btn);
+  });
+  return bar;
 }
 
 /* ══════════════════════════════════════════════════════
@@ -228,20 +256,12 @@ function _readingProgressBar() {
   _readingProgressEl = document.createElement("div");
   _readingProgressEl.id = "readingProgress";
   document.body.appendChild(_readingProgressEl);
-  // rAF-batched, same pattern as the bottom dock's scroll handler — avoids
-  // running a layout read (scrollHeight) + write (style.width) on every
-  // single scroll event, which causes layout thrashing on long pages.
-  let ticking = false;
   window.addEventListener("scroll", () => {
-    if (!_readingProgressEl.classList.contains("visible") || ticking) return;
-    ticking = true;
-    requestAnimationFrame(() => {
-      const doc = document.documentElement;
-      const max = doc.scrollHeight - window.innerHeight;
-      const pct = max > 0 ? (window.scrollY / max) * 100 : 0;
-      _readingProgressEl.style.width = `${Math.max(0, Math.min(100, pct))}%`;
-      ticking = false;
-    });
+    if (!_readingProgressEl.classList.contains("visible")) return;
+    const doc = document.documentElement;
+    const max = doc.scrollHeight - window.innerHeight;
+    const pct = max > 0 ? (window.scrollY / max) * 100 : 0;
+    _readingProgressEl.style.width = `${Math.max(0, Math.min(100, pct))}%`;
   }, { passive: true });
   return _readingProgressEl;
 }
@@ -286,21 +306,203 @@ function hideReadingProgress() {
 // restore scroll inside its <iframe> once the book finishes loading.
 window._bmPendingLibraryScroll = null;
 
-function showBookmarkFab(meta) {
-  if (!addBookmarkFab) return;
-  addBookmarkFab.style.display = "flex";
-  addBookmarkFab.onclick = async () => {
-    const scrollPercent = meta.getScrollPercent ? meta.getScrollPercent() : bmCurrentScrollPercent();
+/* ══════════════════════════════════════════════════════
+   §25 RADIAL FAB DIAL — multi-action bookmark FAB
+   Actions: Add Bookmark · Attach Note · Copy Verse · Audio (stub)
+   Uses transform/opacity only (no layout animation).
+══════════════════════════════════════════════════════ */
+let _fabMeta = null;      // set by showBookmarkFab, read by actions
+let _fabOpen = false;
+
+const fabDial = (() => {
+  const esc = window.SwadhyayEscapeHtml || (s => String(s ?? ""));
+
+  // Inject the dial container once into the DOM alongside the FAB
+  let _dial = null;
+  function ensureDial() {
+    if (_dial) return _dial;
+    _dial = document.createElement("div");
+    _dial.className = "fabDial";
+    _dial.setAttribute("aria-hidden", "true");
+    _dial.innerHTML = `
+      <button class="fabDialAction" id="fabActBookmark" aria-label="বুকমার্ক যোগ করুন">🔖<span class="fabDialLabel">বুকমার্ক</span></button>
+      <button class="fabDialAction" id="fabActNote"     aria-label="নোট যুক্ত করুন">📝<span class="fabDialLabel">নোট</span></button>
+      <button class="fabDialAction" id="fabActCopy"     aria-label="শ্লোক কপি করুন">📋<span class="fabDialLabel">কপি</span></button>
+      <button class="fabDialAction" id="fabActAudio"    aria-label="শব্দপাঠ">🔇<span class="fabDialLabel">অডিও</span></button>`;
+    document.body.appendChild(_dial);
+
+    _dial.querySelector("#fabActBookmark").addEventListener("click", _onBookmark);
+    _dial.querySelector("#fabActNote").addEventListener("click", _onNote);
+    _dial.querySelector("#fabActCopy").addEventListener("click", _onCopy);
+    _dial.querySelector("#fabActAudio").addEventListener("click", _onAudio);
+
+    // Close on outside tap
+    document.addEventListener("click", (e) => {
+      if (_fabOpen && !addBookmarkFab.contains(e.target) && !_dial.contains(e.target)) _closeDialNow();
+    });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && _fabOpen) _closeDialNow(); });
+    window.addEventListener("hashchange", _closeDialNow);
+    return _dial;
+  }
+
+  function _openDial() {
+    const d = ensureDial();
+    _fabOpen = true;
+    d.classList.add("fabDialOpen");
+    d.setAttribute("aria-hidden", "false");
+    addBookmarkFab.setAttribute("aria-expanded", "true");
+    // Focus first action
+    requestAnimationFrame(() => d.querySelector(".fabDialAction")?.focus());
+    // Update bookmark icon to show current state
+    window.BookmarkManager?.isBookmarked(location.hash).then(is => {
+      const btn = d.querySelector("#fabActBookmark");
+      if (btn) { btn.textContent = ""; btn.insertAdjacentText("beforeend", is ? "✅" : "🔖"); btn.insertAdjacentHTML("beforeend", `<span class="fabDialLabel">${is ? "বুকমার্ক হয়েছে" : "বুকমার্ক"}</span>`); }
+    });
+    // Update audio icon based on whether audio track exists
+    const hasAudio = !!(_fabMeta?.audioTrack?.mediaUrl);
+    const audioBtn = d.querySelector("#fabActAudio");
+    if (audioBtn) audioBtn.textContent = hasAudio ? "🔊" : "🔇";
+  }
+
+  function _closeDialNow() {
+    if (!_dial) return;
+    _fabOpen = false;
+    _dial.classList.remove("fabDialOpen");
+    _dial.setAttribute("aria-hidden", "true");
+    if (addBookmarkFab) {
+      addBookmarkFab.setAttribute("aria-expanded", "false");
+      addBookmarkFab.focus();
+    }
+  }
+
+  async function _onBookmark() {
+    _closeDialNow();
+    if (!_fabMeta) return;
+    const scrollPercent = _fabMeta.getScrollPercent ? _fabMeta.getScrollPercent() : bmCurrentScrollPercent();
     await window.BookmarkManager.add({
       hash: location.hash,
-      title: meta.title || "",
-      subtitle: meta.subtitle || "",
-      preview: meta.preview || "",
+      title: _fabMeta.title || "",
+      subtitle: _fabMeta.subtitle || "",
+      preview: _fabMeta.preview || "",
       scrollPercent,
     });
     addBookmarkFab.textContent = "✅";
     animateBookmarkBurst(addBookmarkFab);
     setTimeout(() => { if (addBookmarkFab) addBookmarkFab.textContent = "🔖"; }, 900);
+  }
+
+  function _onNote() {
+    _closeDialNow();
+    if (!window.BookmarkManager) return;
+
+    // Ensure a bookmark exists first, then prompt for note
+    const hash = location.hash;
+    window.BookmarkManager.isBookmarked(hash).then(async (exists) => {
+      if (!exists) {
+        const scrollPercent = _fabMeta?.getScrollPercent ? _fabMeta.getScrollPercent() : bmCurrentScrollPercent();
+        await window.BookmarkManager.add({ hash, title: _fabMeta?.title || "", subtitle: _fabMeta?.subtitle || "", preview: _fabMeta?.preview || "", scrollPercent });
+      }
+      const bookmarks = await window.BookmarkManager.list();
+      const bm = bookmarks.find(b => b.hash === hash);
+      const existing = bm?.note || "";
+      _showNoteModal(hash, existing);
+    });
+  }
+
+  function _showNoteModal(hash, existingNote) {
+    const modal = document.createElement("div");
+    modal.className = "noteModal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-label", "নোট যুক্ত করুন");
+    modal.innerHTML = `
+      <div class="noteModalBox">
+        <div class="noteModalTitle">📝 নোট</div>
+        <textarea class="noteModalInput" aria-label="আপনার নোট লিখুন" maxlength="500" placeholder="এখানে লিখুন…" rows="4"></textarea>
+        <div class="noteModalActions">
+          <button class="noteModalCancel" aria-label="বাতিল">বাতিল</button>
+          <button class="noteModalSave" aria-label="সংরক্ষণ">সংরক্ষণ</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+
+    const textarea = modal.querySelector(".noteModalInput");
+    textarea.value = existingNote;
+    requestAnimationFrame(() => textarea.focus());
+
+    const closeModal = () => { if (modal.parentNode) modal.parentNode.removeChild(modal); };
+
+    modal.querySelector(".noteModalCancel").addEventListener("click", closeModal);
+    modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
+    modal.querySelector(".noteModalSave").addEventListener("click", async () => {
+      const note = textarea.value;
+      await window.BookmarkManager.updateNote(hash, note);
+      closeModal();
+      // Brief toast confirmation
+      const toast = document.createElement("div");
+      toast.className = "fabToast";
+      toast.textContent = "নোট সংরক্ষণ হয়েছে";
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2200);
+    });
+    modal.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
+  }
+
+  async function _onCopy() {
+    _closeDialNow();
+    if (!_fabMeta) return;
+    const text = [
+      _fabMeta.preview || "",
+      _fabMeta.subtitle ? `— ${_fabMeta.title} · ${_fabMeta.subtitle}` : _fabMeta.title || "",
+    ].filter(Boolean).join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (e) {
+      // Clipboard API fallback
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.cssText = "position:fixed;left:-9999px;top:-9999px;";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
+      } catch { /* silent fail */ }
+    }
+    const toast = document.createElement("div");
+    toast.className = "fabToast";
+    toast.textContent = "শ্লোক কপি হয়েছে";
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2200);
+  }
+
+  function _onAudio() {
+    _closeDialNow();
+    if (_fabMeta?.audioTrack?.mediaUrl) {
+      // §9 audio — wire to audio.js when it exists
+      if (window.SwadhyayAudio?.play) { window.SwadhyayAudio.play(_fabMeta.audioTrack); }
+      else { alert("অডিও প্লেব্যাক শীঘ্রই আসছে।"); }
+    } else {
+      const toast = document.createElement("div");
+      toast.className = "fabToast";
+      toast.textContent = "এই শ্লোকের জন্য অডিও পাওয়া যাচ্ছে না";
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2800);
+    }
+  }
+
+  return { open: _openDial, close: _closeDialNow };
+})();
+
+function showBookmarkFab(meta) {
+  if (!addBookmarkFab) return;
+  _fabMeta = meta;
+  addBookmarkFab.style.display = "flex";
+  addBookmarkFab.setAttribute("aria-expanded", "false");
+  addBookmarkFab.setAttribute("aria-label", "রিডার অ্যাকশন মেনু");
+  addBookmarkFab.onclick = (e) => {
+    e.stopPropagation();
+    _fabOpen ? fabDial.close() : fabDial.open();
   };
   startReadingPositionTracking(meta);
   showReadingProgress();
@@ -308,6 +510,8 @@ function showBookmarkFab(meta) {
 
 function hideBookmarkFab() {
   if (!addBookmarkFab) return;
+  fabDial.close();
+  _fabMeta = null;
   addBookmarkFab.style.display = "none";
   addBookmarkFab.onclick = null;
   stopReadingPositionTracking();
@@ -324,6 +528,7 @@ let _readingPosCleanup = null;
 
 function startReadingPositionTracking(meta) {
   stopReadingPositionTracking();
+  document.body.classList.add("reading"); // §40 dampens ambient bg engine in reader
   if (!window.ReadingPosition) return;
 
   const record = () => {
@@ -359,6 +564,7 @@ function startReadingPositionTracking(meta) {
 }
 
 function stopReadingPositionTracking() {
+  document.body.classList.remove("reading");
   if (_readingPosCleanup) {
     _readingPosCleanup();
     _readingPosCleanup = null;
@@ -391,8 +597,9 @@ async function screenBookmarks() {
     <div class="bookmarkList">
       ${items.map(bm => `
         <div class="mantraItem" data-bm-id="${bm.id}" style="position:relative;">
-          <div class="mref">${bm.title}${bm.subtitle ? " · " + bm.subtitle : ""}</div>
-          ${bm.preview ? `<div class="mtext">${bm.preview}</div>` : ""}
+          <div class="mref">${escapeHtml(bm.title)}${bm.subtitle ? " · " + escapeHtml(bm.subtitle) : ""}</div>
+          ${bm.preview ? `<div class="mtext">${escapeHtml(bm.preview)}</div>` : ""}
+          ${bm.note ? `<div class="mtext bengaliCommentary" style="margin-top:6px;color:var(--gold-bright);">📝 ${escapeHtml(bm.note)}</div>` : ""}
           <button class="bmDeleteBtn" data-bm-del="${bm.id}" aria-label="মুছুন" style="position:absolute;top:10px;right:10px;background:none;border:none;color:var(--gold);opacity:.6;font-size:1rem;">✕</button>
         </div>`).join("")}
     </div>`;
@@ -433,6 +640,45 @@ async function ensureKandaCache() {
 ══════════════════════════════════════════════════════ */
 // Branch hierarchy shown on the home screen.
 // `route` = available now; `soon` = placeholder, no data bundled yet.
+// §7 — Lotus/Padma sacred hero motif. Pure inline SVG (no raster asset,
+// no external URL) so it stays lightweight and scales without pixelation.
+// Colors come entirely from CSS variables (see .padmaHero rules in
+// app.css) so it automatically follows the active accent theme.
+// Animation (breathing scale + slow orbital ring rotation) uses only
+// transform/opacity and is fully disabled under prefers-reduced-motion.
+const PADMA_LOTUS_SVG = `
+<svg class="padmaHero" viewBox="0 0 400 400" role="img" aria-label="পবিত্র পদ্ম" aria-hidden="false" focusable="false">
+  <defs>
+    <radialGradient id="padmaHalo" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="var(--gold-bright)" stop-opacity="0.35"/>
+      <stop offset="60%" stop-color="var(--gold)" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="var(--gold)" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="padmaPetal" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="var(--gold-bright)"/>
+      <stop offset="100%" stop-color="var(--gold)"/>
+    </linearGradient>
+  </defs>
+  <g class="outerHalo"><circle cx="200" cy="200" r="180" fill="url(#padmaHalo)"/></g>
+  <g class="orbitalRing" fill="none" stroke="var(--gold)" stroke-opacity="0.25" stroke-width="1">
+    <circle cx="200" cy="200" r="140"/>
+    <circle cx="200" cy="200" r="4" fill="var(--gold-bright)" fill-opacity="0.8"/>
+  </g>
+  <g class="rearPetals" fill="url(#padmaPetal)" opacity="0.55">
+    ${[0,45,90,135,180,225,270,315].map(a => `<ellipse cx="200" cy="140" rx="20" ry="58" transform="rotate(${a} 200 200)"/>`).join("")}
+  </g>
+  <g class="sidePetals" fill="url(#padmaPetal)" opacity="0.78">
+    ${[30,90,150,210,270,330].map(a => `<ellipse cx="200" cy="128" rx="24" ry="66" transform="rotate(${a} 200 200)"/>`).join("")}
+  </g>
+  <g class="frontPetals" fill="url(#padmaPetal)">
+    ${[0,60,120,180,240,300].map(a => `<ellipse cx="200" cy="118" rx="26" ry="70" transform="rotate(${a} 200 200)"/>`).join("")}
+  </g>
+  <g class="centerPetal">
+    <ellipse cx="200" cy="200" rx="34" ry="34" fill="var(--gold-bright)"/>
+    <circle class="glowCore" cx="200" cy="200" r="14" fill="var(--parchment)" fill-opacity="0.9"/>
+  </g>
+</svg>`;
+
 const HOME_SECTIONS = [
   { icon: "🕉", label: "বেদ",           route: "#/vedas" },
   { icon: "🏹", label: "রামায়ণ",        route: "#/ramayana" },
@@ -451,44 +697,109 @@ const HOME_SECTIONS = [
   { icon: "📚", label: "ডিজিটাল লাইব্রেরি", route: "#/library" },
 ];
 
+// §9 (doc2) — deterministic "one verse per day" reflection, built only
+// from real Rigveda data already bundled with the app (VedaDB is always
+// initialized by boot() before screenHome() can run). Same calendar day
+// always yields the same verse; falls back to the static motto if the
+// DB read fails or the corpus is empty — never fabricates a quotation.
+async function getDailyReflection() {
+  try {
+    const veda = await window.VedaDB.getVedaByCode("rigveda");
+    if (!veda) return null;
+    const total = await window.VedaDB.getMantraCount(veda.id);
+    if (!total) return null;
+    const start = new Date(new Date().getFullYear(), 0, 0);
+    const dayOfYear = Math.floor((new Date() - start) / 86400000);
+    const mantraNo = (dayOfYear % total) + 1; // mantra_no is 1-indexed
+    const page = await window.VedaDB.getMantraRange(veda.id, mantraNo, mantraNo);
+    const mantra = Array.isArray(page) ? page[0] : (page?.rows ? page.rows[0] : null);
+    if (!mantra) return null;
+    const excerpt = (mantra.sanskrit_swara || mantra.sanskrit_text || "").split("\n")[0].slice(0, 80);
+    return {
+      reference: `${veda.name} · ${mantra.mantra_ref_id}`,
+      excerpt,
+      href: `#/mantra/${veda.code}/${encodeURIComponent(mantra.mantra_ref_id)}`,
+    };
+  } catch (e) {
+    console.warn("Daily reflection unavailable, using static motto:", e);
+    return null;
+  }
+}
+
+// §11–12 — real reading-progress lookup per scripture card. Only shows a
+// percentage when ReadingPosition actually has one; never invented.
+async function getScriptureProgress(readingKey) {
+  if (!window.ReadingPosition || !readingKey) return null;
+  const pos = await window.ReadingPosition.getForScripture(readingKey);
+  return pos ? pos.scrollPercent : null;
+}
+
+const HOME_GRID_PROGRESS_KEY = {
+  "#/vedas": null, // Vedas is a family of 4 — no single progress number applies
+  "#/ramayana": "ramayana",
+  "#/mahabharata": "mahabharata",
+};
+
 async function screenHome() {
   showBack(false);
   setTitle("চতুর্বেদ সংকলন");
 
-  const items = HOME_SECTIONS.map((s) => {
-    if (s.soon) {
-      return `<div class="listItem comingSoon" aria-disabled="true">
-        <span class="icon">${s.icon}</span>
-        <span class="label">${s.label}</span>
-        <span class="badge">শীঘ্রই আসছে</span>
-      </div>`;
-    }
-    return `<a class="listItem" href="${s.route}">
+  const availableSections = HOME_SECTIONS.filter(s => !s.soon);
+  const soonSections = HOME_SECTIONS.filter(s => s.soon);
+
+  const gridCards = await Promise.all(availableSections.map(async (s) => {
+    const progressKey = HOME_GRID_PROGRESS_KEY[s.route];
+    const progress = progressKey ? await getScriptureProgress(progressKey) : null;
+    return `
+      <a class="scriptureCard" href="${s.route}">
+        <div class="scriptureCardMedia" aria-hidden="true"><span class="scriptureCardGlyph">${s.icon}</span></div>
+        <div class="scriptureCardBody">
+          <div class="scriptureCardTitle">${escapeHtml(s.label)}</div>
+          ${progress !== null ? `
+            <div class="scriptureCardProgress" role="progressbar" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100" aria-label="পড়ার অগ্রগতি">
+              <div class="scriptureCardProgressFill" style="width:${progress}%"></div>
+            </div>
+            <div class="scriptureCardMeta">${progress}% পড়া হয়েছে</div>` : ""}
+        </div>
+      </a>`;
+  }));
+
+  const soonItems = soonSections.map((s) => `
+    <div class="listItem comingSoon" aria-disabled="true">
       <span class="icon">${s.icon}</span>
-      <span class="label">${s.label}</span>
-      <span class="arrow">›</span>
-    </a>`;
-  }).join("");
+      <span class="label">${escapeHtml(s.label)}</span>
+      <span class="badge">শীঘ্রই আসছে</span>
+    </div>`).join("");
 
   const continueReading = window.ReadingPosition ? await window.ReadingPosition.getLatest() : null;
   const continueCard = continueReading ? `
     <div class="continueReadingCard" id="continueReadingCard">
       <div class="continueReadingLabel">আপনার পড়া চালিয়ে যান</div>
-      <div class="continueReadingTitle">${continueReading.title}${continueReading.subtitle ? " · " + continueReading.subtitle : ""}</div>
+      <div class="continueReadingTitle">${escapeHtml(continueReading.title)}${continueReading.subtitle ? " · " + escapeHtml(continueReading.subtitle) : ""}</div>
     </div>` : "";
 
-  const categoryChips = HOME_SECTIONS.filter(s => !s.soon).map(s => `
-    <a class="categoryChip" href="${s.route}"><span class="chipIcon">${s.icon}</span>${s.label}</a>
+  const categoryChips = availableSections.map(s => `
+    <a class="categoryChip" href="${s.route}"><span class="chipIcon">${s.icon}</span>${escapeHtml(s.label)}</a>
   `).join("");
+
+  const reflection = await getDailyReflection();
 
   root.innerHTML = `
     <div class="hero">
+      ${PADMA_LOTUS_SVG}
       <div class="om">ओ३म्</div>
-      <div class="sub">The Four Vedas & Valmiki Ramayana — সম্পূর্ণ সংকলন</div>
+      <div class="sub">Om Krinvanto Vishvam Aryam</div>
+      ${reflection ? `
+        <a class="dailyReflection" href="${reflection.href}">
+          <div class="dailyReflectionLabel">✦ আজকের মন্ত্র</div>
+          <div class="dailyReflectionExcerpt sanskritBlock" style="font-size:1.05rem;">${escapeHtml(reflection.excerpt)}</div>
+          <div class="dailyReflectionRef">${escapeHtml(reflection.reference)}</div>
+        </a>` : `<div class="sub" style="margin-top:6px;">The Four Vedas & Valmiki Ramayana — সম্পূর্ণ সংকলন</div>`}
     </div>
     <div class="categoryBar">${categoryChips}</div>
     ${continueCard}
-    <div class="homeList">${items}</div>`;
+    <div class="scriptureGrid">${gridCards.join("")}</div>
+    ${soonItems ? `<div class="homeList" style="margin-top:16px;">${soonItems}</div>` : ""}`;
 
   if (continueReading) {
     document.getElementById("continueReadingCard").addEventListener("click", () => {
@@ -507,18 +818,14 @@ async function screenVedas() {
 }
 
 /**
- * Resolves and navigates to the very first mantra of a Veda (Mandala 1 ·
- * Sukta 1 · Mantra 1, or the equivalent for vedas with fewer levels),
- * so tapping "বেদ" (or a Veda tab) lands directly on the picker-bar
- * reading screen instead of the Mandala/Sukta grid drill-down. Those
- * grid screens (screenVeda/screenLevel1/etc, below) still exist and
- * still work if something else links to them.
+ * Navigates to the very first mantra of a Veda (Mandala 1 · Sukta 1 ·
+ * Mantra 1, or equivalent for vedas with fewer levels), so tapping a
+ * Veda tab lands directly on the reading screen rather than a drill-down.
  */
 async function jumpToFirstMantra(code) {
   const veda = vedaCache[code];
   if (!veda) return;
   let firstRef = null;
-
   if (veda.level1_label) {
     const level1s = await window.VedaDB.getLevel1List(veda.id);
     const l1 = level1s[0]?.level1;
@@ -536,8 +843,26 @@ async function jumpToFirstMantra(code) {
     const list = await window.VedaDB.getMantraRange(veda.id, 1, 1);
     firstRef = list[0]?.mantra_ref_id;
   }
-
   if (firstRef) location.hash = `#/mantra/${code}/${encodeURIComponent(firstRef)}`;
+}
+
+/** Navigates to the first shloka of a Ramayana Kanda. */
+async function jumpToFirstShloka(kandaId) {
+  const sargas = await window.RamayanaDB.getSargasForKanda(kandaId);
+  if (!sargas[0]) return;
+  const shlokas = await window.RamayanaDB.getShlokasForSarga(sargas[0].id);
+  if (!shlokas[0]) return;
+  const ref = `K${kandaId}.S${sargas[0].id}.${shlokas[0].id}`;
+  location.hash = `#/ramayana/shloka/${encodeURIComponent(ref)}`;
+}
+
+/** Navigates to the first adhyay of a downloaded Mahabharata parba. */
+async function jumpToFirstAdhyay(parbaId) {
+  const downloaded = await window.MahabharataDB.isPackDownloaded(parbaId);
+  if (!downloaded) { location.hash = `#/mahabharata/parba/${parbaId}`; return; }
+  const adhyayas = await window.MahabharataDB.getAdhyayasForParba(parbaId);
+  if (adhyayas[0]) location.hash = `#/mahabharata/parba/${parbaId}/adhyay/${adhyayas[0].id}`;
+  else location.hash = `#/mahabharata/parba/${parbaId}`;
 }
 
 /* ══════════════════════════════════════════════════════
@@ -718,10 +1043,22 @@ async function screenMantra(code, refEncodedWithQuery) {
   const quickJumpFields = await buildVedaQuickJumpFields(code, veda, mantra);
 
   const meta = [
-    mantra.devata ? `দেবতা: ${mantra.devata}` : "",
-    mantra.rishi ? `ঋষি: ${mantra.rishi}` : "",
-    mantra.chhanda ? `ছন্দ: ${mantra.chhanda}` : "",
+    mantra.devata ? `দেবতা: ${escapeHtml(mantra.devata)}` : "",
+    mantra.rishi ? `ঋষি: ${escapeHtml(mantra.rishi)}` : "",
+    mantra.chhanda ? `ছন্দ: ${escapeHtml(mantra.chhanda)}` : "",
   ].filter(Boolean).join(" &nbsp;·&nbsp; ");
+
+  // §15/§9(doc2) — transliteration is rendered only when both (a) the
+  // reader setting is on and (b) the DB record actually carries a
+  // transliteration value. Neither is true today (no such DB column
+  // exists yet), so this stays dormant — ready the moment real data
+  // shows up, without fabricating any text now.
+  const readerSettings = await ChaturvedaSettings.loadAll();
+  const showTranslit = (readerSettings.transliteration === true || readerSettings.transliteration === "true")
+    && !!mantra.transliteration;
+  const translitHtml = showTranslit
+    ? `<div class="transliteration">${escapeHtml(mantra.transliteration)}</div>`
+    : "";
 
   const LANG_NORMALIZE = { "Hinglish": "Hindi" };
   const byLang = {};
@@ -780,8 +1117,9 @@ async function screenMantra(code, refEncodedWithQuery) {
   `).join("");
 
   root.innerHTML = `
-    <div class="mantraDetail">
-      <div class="sanskritBlock">${mantra.sanskrit_swara || mantra.sanskrit_text || ""}</div>
+    <div class="mantraDetail" data-swipe-nav="1">
+      <div class="sanskritBlock">${escapeHtml(mantra.sanskrit_swara || mantra.sanskrit_text || "")}</div>
+      ${translitHtml}
       ${meta ? `<div class="mantraMeta">${meta}</div>` : ""}
     </div>
     ${scholars.length ? `
@@ -861,7 +1199,7 @@ async function screenMantra(code, refEncodedWithQuery) {
           <button class="miniBtn deletePackBtn" data-scholar-del="${scholarId}">এই ভাষ্য মুছুন</button>
         </div>
         ${fields.length
-          ? fields.map(f => `<div class="field"><div class="fieldLabel">${f.field_key}</div><div class="fieldValue">${f.value}</div></div>`).join("")
+          ? fields.map(f => `<div class="field"><div class="fieldLabel">${escapeHtml(f.field_key)}</div><div class="fieldValue bengaliCommentary">${escapeHtml(f.value)}</div></div>`).join("")
           : `<div class="empty">এই মন্ত্রে এই ভাষ্যকারের কোনো তথ্য নেই।</div>`}`;
       body.querySelector(".deletePackBtn").addEventListener("click", async () => {
         if (!confirm(`"${s.name}" ভাষ্য মুছে ফেলতে চান?`)) return;
@@ -1037,27 +1375,27 @@ async function ramayanaDownloadGate(destHash = "#/ramayana") {
 
 async function screenRamayana() {
   if (!await ramayanaDownloadGate("#/ramayana")) return;
-  await ensureKandaCache();
-  const firstKandaId = Object.values(kandaCache)[0]?.id;
-  if (firstKandaId) { await jumpToFirstShloka(firstKandaId); return; }
   showBack(true);
   setTitle("বাল্মীকি রামায়ণ");
-  root.innerHTML = `<div class="empty">রামায়ণের তথ্য পাওয়া যায়নি।</div>`;
-}
+  await ensureKandaCache();
 
-/**
- * Resolves and navigates to Sarga 1 · Shloka 1 of a Kanda, so tapping
- * "রামায়ণ" (or a Kanda tab) lands directly on the picker-bar reading
- * screen instead of the Sarga-list drill-down. screenRamayanaKanda()
- * (below) still exists and still works if something else links to it.
- */
-async function jumpToFirstShloka(kandaId) {
-  const sargas = await window.RamayanaDB.getSargasForKanda(kandaId);
-  if (!sargas[0]) return;
-  const shlokas = await window.RamayanaDB.getShlokasForSarga(sargas[0].id);
-  if (!shlokas[0]) return;
-  const ref = `K${kandaId}.S${sargas[0].id}.${shlokas[0].id}`;
-  location.hash = `#/ramayana/shloka/${encodeURIComponent(ref)}`;
+  const kandaCards = Object.values(kandaCache).map((k) => {
+    const colors = RAMAYANA_KANDA_COLORS[(k.id - 1) % RAMAYANA_KANDA_COLORS.length];
+    return `
+      <a class="card" href="#/ramayana/kanda/${k.id}" style="--a:${colors.a};--b:${colors.b}">
+        <div class="tag">Kanda ${k.id}</div>
+        <h2>${k.name} Kanda</h2>
+        <div style="font-size:.85rem;opacity:.7;margin-top:4px;">${k.english_name} · ${k.sarga_count} Sargas</div>
+        <div class="arrow">→</div>
+      </a>`;
+  }).join("");
+
+  root.innerHTML = `
+    <div class="hero">
+      <div class="om">🏹</div>
+      <div class="sub">Valmiki Ramayana — Sanskrit · Word-by-word · Translation</div>
+    </div>
+    <div class="grid">${kandaCards}</div>`;
 }
 
 async function screenRamayanaKanda(kandaId) {
@@ -1069,6 +1407,13 @@ async function screenRamayanaKanda(kandaId) {
   setTitle(`${kanda.name} Kanda`);
 
   const sargas = await window.RamayanaDB.getSargasForKanda(kandaId);
+
+  // §24 — register chapter list for header button + pull-down selector
+  registerChapterList(
+    sargas.map(s => ({ label: `Sarga ${s.chapter} — ${s.name}`, href: `#/ramayana/sarga/${s.id}` })),
+    location.hash
+  );
+
   root.innerHTML = `
     <div class="listHeader">${sargas.length} Sargas</div>
     <div class="mantraList">
@@ -1094,6 +1439,15 @@ async function screenRamayanaSarga(sargaId) {
 
   const shlokas = await window.RamayanaDB.getShlokasForSarga(sargaId);
 
+  // §24 — register shloka list as chapters for selector
+  registerChapterList(
+    shlokas.map(sh => {
+      const ref = `K${sh.kanda_id}.S${sh.sarga_id}.${sh.id}`;
+      return { label: `Shloka ${sh.id}`, href: `#/ramayana/shloka/${encodeURIComponent(ref)}` };
+    }),
+    location.hash
+  );
+
   root.innerHTML = `
     <div class="mantraDetail" style="text-align:left;">
       <div style="color:var(--gold);font-size:.88rem;margin-bottom:6px;">${kanda?.name || ""} Kanda · Sarga ${sarga.chapter}</div>
@@ -1113,10 +1467,8 @@ async function screenRamayanaSarga(sargaId) {
 }
 
 /**
- * Builds the Sarga/Shloka quick-jump field set for screenRamayanaShloka()'s
- * picker bar. Kanda-switching is handled by the scriptureTabBar above it
- * (see screenRamayanaShloka), not a field here, so there's no third
- * "কাণ্ড" field duplicating that.
+ * Builds the Kanda/Sarga/Shloka quick-jump field set for
+ * screenRamayanaShloka()'s picker bar.
  */
 async function buildRamayanaQuickJumpFields(shloka, kanda) {
   const sargas = await window.RamayanaDB.getSargasForKanda(shloka.kanda_id);
@@ -1124,6 +1476,17 @@ async function buildRamayanaQuickJumpFields(shloka, kanda) {
   const shlokas = await window.RamayanaDB.getShlokasForSarga(shloka.sarga_id);
 
   return [
+    {
+      label: "কাণ্ড", current: shloka.kanda_id, currentLabel: kanda?.name || String(shloka.kanda_id),
+      options: async () => Object.values(kandaCache).map(k => ({ value: k.id, label: k.name })),
+      onSelect: async (val) => {
+        const newSargas = await window.RamayanaDB.getSargasForKanda(Number(val));
+        if (!newSargas[0]) return;
+        const newShlokas = await window.RamayanaDB.getShlokasForSarga(newSargas[0].id);
+        if (!newShlokas[0]) return;
+        location.hash = `#/ramayana/shloka/${encodeURIComponent(`K${val}.S${newSargas[0].id}.${newShlokas[0].id}`)}`;
+      },
+    },
     {
       label: "সর্গ", current: shloka.sarga_id, currentLabel: currentSarga ? String(currentSarga.chapter) : "…",
       options: async () => sargas.map(s => ({ value: s.id, label: String(s.chapter) })),
@@ -1219,8 +1582,6 @@ async function screenRamayanaShloka(refEncoded) {
       <a class="navBtn ${next ? "" : "disabled"}" ${next ? `href="${navHref(next)}"` : ""}>পরের শ্লোক →</a>
     </div>`;
 
-  root.prepend(renderQuickJumpBar(quickJumpFields));
-
   {
     const topBars = document.createElement("div");
     topBars.appendChild(renderScriptureTabBar(
@@ -1229,8 +1590,8 @@ async function screenRamayanaShloka(refEncoded) {
         onSelect: () => { if (k.id !== shloka.kanda_id) jumpToFirstShloka(k.id); },
       }))
     ));
+    topBars.appendChild(renderQuickJumpBar(quickJumpFields));
     root.prepend(topBars);
-    topBars.appendChild(root.querySelector(".quickJumpBar"));
   }
 
   showBookmarkFab({
@@ -1308,27 +1669,26 @@ function mbSizeLabel(bytes) {
 }
 
 async function screenMahabharata() {
-  const firstParba = window.MahabharataDB.PARBAS[0];
-  if (firstParba) { await jumpToFirstAdhyay(firstParba.id); return; }
   showBack(true);
   setTitle("মহাভারত");
-  root.innerHTML = `<div class="empty">মহাভারতের তথ্য পাওয়া যায়নি।</div>`;
-}
 
-/**
- * If this পর্ব is already downloaded, jumps straight to Adhyay 1
- * (picker-bar reading screen) — so tapping "মহাভারত" (or a পর্ব tab)
- * lands directly on the reading screen instead of the Adhyay-list
- * drill-down. An un-downloaded পর্ব still falls back to the normal
- * download-gate screen (screenMahabharataParba, below) — nothing to
- * jump to until it's downloaded.
- */
-async function jumpToFirstAdhyay(parbaId) {
-  const downloaded = await window.MahabharataDB.isPackDownloaded(parbaId);
-  if (!downloaded) { location.hash = `#/mahabharata/parba/${parbaId}`; return; }
-  const adhyayas = await window.MahabharataDB.getAdhyayasForParba(parbaId);
-  if (adhyayas[0]) location.hash = `#/mahabharata/parba/${parbaId}/adhyay/${adhyayas[0].id}`;
-  else location.hash = `#/mahabharata/parba/${parbaId}`;
+  const parbaCards = window.MahabharataDB.PARBAS.map((p) => {
+    const colors = MAHABHARATA_PARBA_COLORS[(p.parba_no - 1) % MAHABHARATA_PARBA_COLORS.length];
+    return `
+      <a class="card" href="#/mahabharata/parba/${p.id}" style="--a:${colors.a};--b:${colors.b}">
+        <div class="tag">পর্ব ${p.parba_no}</div>
+        <h2>${p.name}</h2>
+        <div style="font-size:.85rem;opacity:.7;margin-top:4px;">${p.adhyay_count} অধ্যায় · ${p.upakhyan_count} উপাখ্যান</div>
+        <div class="arrow">→</div>
+      </a>`;
+  }).join("");
+
+  root.innerHTML = `
+    <div class="hero">
+      <div class="om">⚔️</div>
+      <div class="sub">মহাভারত — কালীপ্রসন্ন সিংহ অনূদিত · অষ্টাদশ পর্ব</div>
+    </div>
+    <div class="grid">${parbaCards}</div>`;
 }
 
 async function screenMahabharataParba(parbaId) {
@@ -1375,20 +1735,13 @@ async function screenMahabharataParba(parbaId) {
       btn.textContent = "ডাউনলোড হচ্ছে…";
       try {
         await window.MahabharataDB.downloadPack(parbaId, msg => { if (statusEl) statusEl.textContent = msg; });
-        await jumpToFirstAdhyay(parbaId);
+        await screenMahabharataParba(parbaId);
       } catch (e) {
         btn.disabled = false;
         btn.textContent = "আবার চেষ্টা করুন";
         statusEl.textContent = "ব্যর্থ: " + (e.message || e);
       }
     });
-
-    root.prepend(renderScriptureTabBar(
-      window.MahabharataDB.PARBAS.map(p => ({
-        label: `পর্ব ${p.parba_no}`, active: p.id === parbaId,
-        onSelect: () => { if (p.id !== parbaId) jumpToFirstAdhyay(p.id); },
-      }))
-    ));
     return;
   }
 
@@ -1400,6 +1753,12 @@ async function screenMahabharataParba(parbaId) {
     root.innerHTML = `<div class="empty">অধ্যায় তালিকা লোড করতে সমস্যা।<br><small>${e.message || e}</small></div>`;
     return;
   }
+
+  // §24 — register chapters for header button + pull-down selector
+  registerChapterList(
+    adhyayas.map(a => ({ label: `${a.chapter_no} — ${a.title}`, href: `#/mahabharata/parba/${parbaId}/adhyay/${a.id}` })),
+    location.hash
+  );
 
   root.innerHTML = `
     <div class="hero">
@@ -1423,13 +1782,6 @@ async function screenMahabharataParba(parbaId) {
     await window.MahabharataDB.deletePack(parbaId);
     await screenMahabharataParba(parbaId);
   });
-
-  root.prepend(renderScriptureTabBar(
-    window.MahabharataDB.PARBAS.map(p => ({
-      label: `পর্ব ${p.parba_no}`, active: p.id === parbaId,
-      onSelect: () => { if (p.id !== parbaId) jumpToFirstAdhyay(p.id); },
-    }))
-  ));
 }
 
 /**
@@ -1438,15 +1790,22 @@ async function screenMahabharataParba(parbaId) {
  * un-downloaded পর্ব goes to its download-gate screen instead of
  * trying to open an adhyay that isn't there yet.
  */
-/**
- * Builds the Adhyay quick-jump field for screenMahabharataAdhyay()'s
- * picker bar. পর্ব-switching is handled by the scriptureTabBar above it
- * (see screenMahabharataAdhyay), not a field here.
- */
 async function buildMahabharataQuickJumpFields(parbaId, adhyay) {
   const adhyayas = await window.MahabharataDB.getAdhyayasForParba(parbaId);
+  const currentParba = window.MahabharataDB.getParbaById(parbaId);
 
   return [
+    {
+      label: "পর্ব", current: parbaId, currentLabel: currentParba ? String(currentParba.parba_no) : String(parbaId),
+      options: async () => window.MahabharataDB.PARBAS.map(p => ({ value: p.id, label: String(p.parba_no) })),
+      onSelect: async (val) => {
+        const newParbaId = Number(val);
+        const dl = await window.MahabharataDB.isPackDownloaded(newParbaId);
+        if (!dl) { location.hash = `#/mahabharata/parba/${newParbaId}`; return; }
+        const list = await window.MahabharataDB.getAdhyayasForParba(newParbaId);
+        if (list[0]) location.hash = `#/mahabharata/parba/${newParbaId}/adhyay/${list[0].id}`;
+      },
+    },
     {
       label: "অধ্যায়", current: adhyay.id, currentLabel: String(adhyay.chapter_no),
       options: async () => adhyayas.map(a => ({ value: a.id, label: String(a.chapter_no) })),
@@ -1496,18 +1855,17 @@ async function screenMahabharataAdhyay(parbaId, adhyayId) {
       <a class="navBtn ${next ? "" : "disabled"}" ${next ? `href="${navHref(next)}"` : ""}>পরের অধ্যায় →</a>
     </div>`;
 
-  root.prepend(renderQuickJumpBar(quickJumpFields));
-
   {
+    const allParbas = await window.MahabharataDB.getParbas();
     const topBars = document.createElement("div");
     topBars.appendChild(renderScriptureTabBar(
-      window.MahabharataDB.PARBAS.map(p => ({
-        label: `পর্ব ${p.parba_no}`, active: p.id === parbaId,
+      allParbas.map(p => ({
+        label: p.name, active: p.id === parbaId,
         onSelect: () => { if (p.id !== parbaId) jumpToFirstAdhyay(p.id); },
       }))
     ));
+    topBars.appendChild(renderQuickJumpBar(quickJumpFields));
     root.prepend(topBars);
-    topBars.appendChild(root.querySelector(".quickJumpBar"));
   }
 
   showBookmarkFab({
@@ -1979,17 +2337,20 @@ async function runSearch(term, scope = "all") {
   const codeToName = {};
   for (const [code, v] of Object.entries(vedaCache)) codeToName[code] = v.name;
 
+  const ranker = window.SwadhyaySearch?.rankResults || ((recs) => Promise.resolve(recs));
+
   try {
     let html = "";
 
     if (scope === "all" || scope === "vedas") {
-      const results = await window.VedaDB.search(null, term, 30);
+      const rawVeda = await window.VedaDB.search(null, term, 30);
+      const results = rawVeda.length > 1 ? await ranker(rawVeda, term) : rawVeda;
       if (results.length) {
         html += `<div class="listHeader" style="margin-bottom:8px;">📜 বেদ (${results.length})</div>`;
         html += results.map(r => `
           <a class="mantraItem" href="#/mantra/${r.veda_code}/${encodeURIComponent(r.mantra_ref_id)}">
-            <div class="mref">${codeToName[r.veda_code] || r.veda_code} ${r.mantra_ref_id}</div>
-            <div class="mtext">${(r.content || "").slice(0, 90)}…</div>
+            <div class="mref">${escapeHtml(codeToName[r.veda_code] || r.veda_code)} ${escapeHtml(r.mantra_ref_id)}</div>
+            <div class="mtext">${escapeHtml((r.content || "").slice(0, 90))}…</div>
           </a>`).join("");
       }
     }
@@ -2002,8 +2363,8 @@ async function runSearch(term, scope = "all") {
           const kanda = kandaCache[r.kandaId];
           return `
             <a class="mantraItem" href="#/ramayana/shloka/${encodeURIComponent(r.ref)}">
-              <div class="mref">${kanda?.name || "Kanda " + r.kandaId} · Sarga ${r.sargaId} · ${r.shlokaId}</div>
-              <div class="mtext">${(r.tat || r.sanskrit || "").slice(0, 90)}…</div>
+              <div class="mref">${escapeHtml(kanda?.name || "Kanda " + r.kandaId)} · Sarga ${escapeHtml(r.sargaId)} · ${escapeHtml(r.shlokaId)}</div>
+              <div class="mtext">${escapeHtml((r.tat || r.sanskrit || "").slice(0, 90))}…</div>
             </a>`;
         }).join("");
       }
@@ -2031,8 +2392,8 @@ async function runSearch(term, scope = "all") {
         html += `<div class="listHeader" style="margin:14px 0 8px;">📚 মহাভারত (${mbResults.length})</div>`;
         html += mbResults.map(r => `
           <a class="mantraItem" href="#/mahabharata/parba/${r.parba.id}/adhyay/${r.adhyay_id}">
-            <div class="mref">${r.parba.name} · ${r.adhyay_title || "অধ্যায় " + r.adhyay_id}</div>
-            <div class="mtext">${(r.bishoy || "").slice(0, 90)}…</div>
+            <div class="mref">${escapeHtml(r.parba.name)} · ${escapeHtml(r.adhyay_title || "অধ্যায় " + r.adhyay_id)}</div>
+            <div class="mtext">${escapeHtml((r.bishoy || "").slice(0, 90))}…</div>
           </a>`).join("");
       }
       if (notDownloadedCount > 0 && (scope === "mahabharata" || mbResults.length === 0)) {
@@ -2943,6 +3304,7 @@ async function routeDispatch() {
     try { el.parentNode && el.parentNode.removeChild(el); } catch (e) { /* ignore */ }
   });
   hideBookmarkFab(); // reader screens re-show it themselves after render
+  clearChapterList(); // chapter selector only shown on reader screens
 
   const hash = location.hash || "#/";
   const parts = hash.replace(/^#\//, "").split("/").filter(Boolean);
@@ -3042,12 +3404,7 @@ function updateDockActive() {
       bestLen = route.length;
     }
   });
-  items.forEach((btn) => {
-    const isActive = btn === bestMatch && bestLen >= 0;
-    btn.classList.toggle("active", isActive);
-    if (isActive) btn.setAttribute("aria-current", "page");
-    else btn.removeAttribute("aria-current");
-  });
+  items.forEach((btn) => btn.classList.toggle("active", btn === bestMatch && bestLen >= 0));
 }
 
 if (bottomDock) {
@@ -3080,6 +3437,9 @@ bookmarkBtn.addEventListener("click", () => (location.hash = "#/bookmarks"));
 settingsBtn.addEventListener("click", () => (location.hash = "#/settings"));
 
 async function boot() {
+  // §28 themes.js — apply persisted theme/accent before first render
+  // so there's no flash of wrong colour on launch.
+  if (window.SwadhyayThemes) await window.SwadhyayThemes.init();
   root.innerHTML = `
     <div class="loadingFull">
       <div class="sacredParticles" aria-hidden="true">

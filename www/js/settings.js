@@ -97,16 +97,14 @@ const ChaturvedaSettings = {
     return s;
   },
 
-  // Sacred accent palette (gold/emerald/indigo) — independent from the
-  // light/dark `theme` setting above, so it lives on its own attribute
-  // (data-accent) to avoid clobbering body.dataset.theme.
+  // §28/§56 — delegate to themes.js (single implementation, no duplicate).
+  // themes.js is loaded before settings.js in index.html; fall back to
+  // inline logic only if themes.js somehow hasn't loaded yet.
   applyAccent(accent) {
+    if (window.SwadhyayThemes) { window.SwadhyayThemes.applyAccent(accent); return; }
     const root = document.documentElement;
-    if (accent && accent !== "gold") {
-      root.dataset.accent = accent;
-    } else {
-      delete root.dataset.accent;
-    }
+    if (accent && accent !== "gold") root.dataset.accent = accent;
+    else delete root.dataset.accent;
   },
 
   async setAccentTheme(value) {
@@ -115,19 +113,9 @@ const ChaturvedaSettings = {
   },
 
   applyTheme(theme) {
-    const root = document.documentElement;
-    if (theme === "dark") {
-      root.classList.add("dark");
-    } else if (theme === "light") {
-      root.classList.remove("dark");
-    } else {
-      // auto
-      if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-        root.classList.add("dark");
-      } else {
-        root.classList.remove("dark");
-      }
-    }
+    if (window.SwadhyayThemes) { window.SwadhyayThemes.applyTheme(theme); return; }
+    const body = document.body;
+    body.dataset.theme = theme || "auto";
   },
 
   async setTheme(value) {
