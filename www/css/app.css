@@ -67,8 +67,6 @@ a{color:inherit;text-decoration:none;}
 .iconBtn{
   background:none; border:none; color:var(--gold);
   font-size:1.4rem; cursor:pointer; padding:4px 8px;
-  min-width:44px; min-height:44px;
-  display:inline-flex; align-items:center; justify-content:center;
   visibility:hidden;
 }
 .appBarRight{ display:flex; align-items:center; gap:2px; margin-left:auto; }
@@ -81,23 +79,12 @@ a{color:inherit;text-decoration:none;}
 
 #app{ padding:22px 16px calc(96px + env(safe-area-inset-bottom)); max-width:760px; margin:0 auto; min-height:70vh; }
 
-/* -- Glassmorphic surfaces: kept to the surfaces users actually look
-      through to something behind them — top bar, bottom nav dock, and
-      modal sheets. NOT applied to verse blocks, cards, or list panels,
-      which sit over a static background and gain nothing from a blur
-      pass on every scroll/re-render (see .quickJumpBar/.scriptureTabBar/
-      .mantraDetail/.card/.bookCard/.section/.homeList/.categoryBar below
-      — they keep their own solid var(--panel) background instead). -- */
-.bottomDock, .numberPickerSheet, .numberInputSheet{
+/* -- Glassmorphic surfaces (curated set — not applied blanket-wide,
+      per performance guidance: only the panels users actually look at). -- */
+.section, .mantraDetail, .bookCard, .card, .quickJumpBar, .homeList,
+.categoryBar, .bottomDock{
   backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
   isolation:isolate;
-}
-/* backdrop-filter fallback for browsers/webviews without support —
-   these surfaces still need to read clearly over content behind them. */
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .appBar, .bottomDock, .numberPickerSheet, .numberInputSheet{
-    background: rgba(7,8,10,.94);
-  }
 }
 
 .bookReaderFrame{
@@ -111,6 +98,80 @@ a{color:inherit;text-decoration:none;}
 .hero{ text-align:center; padding:20px 0 30px; }
 .om{ font-size:2.4rem; color:var(--gold); opacity:.85; text-shadow:0 0 40px rgba(212,162,76,.4); margin-bottom:10px; }
 .hero .sub{ font-size:.98rem; color:var(--ash); font-style:italic; line-height:1.6; }
+
+/* ---- §7 Padma / Lotus sacred hero motif ---- */
+.padmaHero{
+  width:min(46vw, 190px); height:min(46vw, 190px);
+  display:block; margin:0 auto 6px;
+  overflow:visible;
+}
+.padmaHero .outerHalo{ animation:padmaBreathe 7s ease-in-out infinite; transform-origin:200px 200px; }
+.padmaHero .orbitalRing{ animation:padmaOrbit 60s linear infinite; transform-origin:200px 200px; }
+.padmaHero .glowCore{ animation:padmaGlowPulse 4s ease-in-out infinite; transform-origin:200px 200px; }
+@keyframes padmaBreathe{ 0%,100%{ transform:scale(1); opacity:1; } 50%{ transform:scale(1.045); opacity:.92; } }
+@keyframes padmaOrbit{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
+@keyframes padmaGlowPulse{ 0%,100%{ opacity:.75; } 50%{ opacity:1; } }
+@media (prefers-reduced-motion: reduce){
+  .padmaHero .outerHalo, .padmaHero .orbitalRing, .padmaHero .glowCore{ animation:none !important; }
+}
+
+/* ---- §9 Daily scripture reflection ---- */
+.dailyReflection{
+  display:block; margin-top:16px; padding:14px 18px;
+  background:var(--panel); border:1px solid var(--panel-border); border-radius:var(--card-radius);
+  text-align:center;
+}
+.dailyReflectionLabel{ font-size:.7rem; letter-spacing:.08em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; }
+.dailyReflectionExcerpt{ color:var(--gold-bright); }
+.dailyReflectionRef{ margin-top:8px; font-size:.78rem; color:var(--ash); }
+
+/* ---- §11–12 Scripture showcase grid (Home) ---- */
+.scriptureGrid{
+  display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));
+  gap:14px; margin-top:4px;
+}
+.scriptureCard{
+  display:block; position:relative; background:var(--panel);
+  border:1px solid var(--panel-border); border-radius:var(--card-radius);
+  overflow:hidden; transition:transform .18s var(--transition-smooth), border-color .2s ease;
+}
+.scriptureCard:active{ transform:scale(.97) translateY(2px); }
+.scriptureCardMedia{
+  height:88px; display:flex; align-items:center; justify-content:center;
+  background:
+    radial-gradient(circle at 30% 20%, var(--glow-primary), transparent 60%),
+    linear-gradient(160deg, rgba(212,162,76,.14), rgba(0,0,0,.15));
+}
+.scriptureCardGlyph{ font-size:2.1rem; filter:drop-shadow(0 0 10px var(--glow-primary)); }
+.scriptureCardBody{ padding:12px 14px 14px; }
+.scriptureCardTitle{ font-size:1rem; font-weight:600; color:var(--parchment); }
+.scriptureCardProgress{
+  margin-top:10px; height:4px; border-radius:4px; background:rgba(255,255,255,.08); overflow:hidden;
+}
+.scriptureCardProgressFill{ height:100%; background:linear-gradient(90deg, var(--gold), var(--gold-bright)); }
+.scriptureCardMeta{ margin-top:6px; font-size:.72rem; color:var(--ash); }
+@media (hover:hover){ .scriptureCard:hover{ border-color:var(--gold); } }
+
+/* ---- Scripture cross-nav tab bar (top of every reader screen) ---- */
+.scriptureTabBar{
+  display:flex; gap:6px; overflow-x:auto; padding:12px 16px 0;
+  -ms-overflow-style:none; scrollbar-width:none;
+  /* Sticky inside the reader frame so it stays visible while scrolling */
+  position:sticky; top:60px; z-index:8;
+  background:rgba(7,8,10,.85); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--panel-border);
+}
+.scriptureTabBar::-webkit-scrollbar{ display:none; }
+.scriptureTab{
+  flex:0 0 auto; background:transparent;
+  border:1px solid var(--panel-border); border-radius:16px;
+  color:var(--ash); font-size:.82rem; padding:6px 14px;
+  font-family:inherit; cursor:pointer; white-space:nowrap;
+  transition:background .18s ease, color .18s ease, border-color .18s ease;
+  min-height:36px;
+}
+.scriptureTab.active{ background:var(--gold); color:#1a1200; border-color:var(--gold); font-weight:700; }
+.scriptureTab:active{ transform:scale(.96); }
 
 /* ---- Category quick-filter chips (Home) ---- */
 .categoryBar{
@@ -205,6 +266,16 @@ a{color:inherit;text-decoration:none;}
 }
 
 .mantraMeta{ margin-top:14px; font-size:.82rem; color:var(--ash); }
+
+/* ---- §15 Indic typography — actually applied, not just tokens ---- */
+.transliteration{
+  font-family:var(--font-latin); line-height:1.65; font-style:italic;
+  color:var(--ash); margin-top:10px; font-size:.95rem;
+}
+.bengaliCommentary{
+  font-family:var(--font-bengali); line-height:1.8; font-size:var(--reader-font-size, 18px);
+  text-align:justify; text-justify:inter-word;
+}
 
 .tabBar{
   display:flex; gap:8px; overflow-x:auto; padding-bottom:8px; margin-bottom:14px;
@@ -751,22 +822,6 @@ body::before {
 .dockItem.active .dockIcon{ transform:translateY(-1px) scale(1.08); filter:drop-shadow(0 0 8px var(--glow-primary)); }
 .dockItem:active .dockIcon{ transform:scale(.85); }
 
-/* -- 14. Scripture switcher tabs (Rigveda/Yajurveda/... or Kanda/পর্ব names) --
-   Sits above the quick-jump picker bar on a reading screen; horizontal
-   scroll for rows that don't fit (18 পর্ব tabs), single line, no wrap. */
-.scriptureTabBar {
-  display: flex; gap: 8px; padding: 10px 16px; overflow-x: auto;
-  background: var(--panel); border-bottom: 1px solid var(--line);
-  white-space: nowrap; -webkit-overflow-scrolling: touch;
-}
-.scriptureTab {
-  flex: 0 0 auto; padding: 8px 16px; border-radius: 20px; border: 1px solid var(--panel-border);
-  background: transparent; color: var(--parchment); font-family: inherit; font-size: .85rem;
-  white-space: nowrap; cursor: pointer; transition: background .2s ease, border-color .2s ease;
-}
-.scriptureTab.active { background: var(--gold); color: #1a1200; border-color: var(--gold); font-weight: 700; }
-.scriptureTab:active { transform: scale(.96); }
-
 /* -- Respect reduced-motion for everything added above -- */
 @media (prefers-reduced-motion: reduce) {
   body::before, #app.pageEnter, .mantraDetail > *, .sanskritBlock,
@@ -774,4 +829,232 @@ body::before {
   .listItem::after, .numChip::after, .rangeItem::after, .mantraItem::after,
   .bookCard::after, .item::after, .tabBtn::after, .langChip::after { display: none; }
   .bottomDock, .dockItem .dockIcon, .categoryChip, .scriptureTab { transition: none !important; }
+  .fabDial .fabDialAction, .selectorSheet { transition: none !important; }
+  .padmaHero .outerHalo, .padmaHero .orbitalRing, .padmaHero .glowCore { animation: none !important; }
 }
+
+/* ══════════════════════════════════════════════════════
+   §25 RADIAL FAB DIAL
+   Four action buttons arc above the main FAB.
+   GPU-only animation (transform + opacity).
+   Each action is at least 44×44px (§43).
+══════════════════════════════════════════════════════ */
+.fabDial{
+  position:fixed;
+  right:18px;
+  bottom:calc(24px + var(--dock-height) + env(safe-area-inset-bottom) + 58px);
+  display:flex; flex-direction:column-reverse; align-items:flex-end;
+  gap:10px; z-index:51; pointer-events:none;
+}
+.fabDial.fabDialOpen{ pointer-events:auto; }
+.fabDialAction{
+  display:flex; align-items:center; gap:8px;
+  background:var(--panel); border:1px solid var(--panel-border);
+  border-radius:24px; padding:10px 16px; color:var(--parchment);
+  font-size:1rem; font-family:inherit; cursor:pointer; white-space:nowrap;
+  box-shadow:0 4px 18px rgba(0,0,0,.38);
+  backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+  opacity:0; transform:translateY(12px) scale(.9);
+  transition:opacity .22s var(--transition-smooth), transform .22s var(--transition-smooth);
+  min-height:44px; min-width:44px;
+}
+.fabDial.fabDialOpen .fabDialAction{
+  opacity:1; transform:translateY(0) scale(1);
+}
+.fabDial.fabDialOpen .fabDialAction:nth-child(1){ transition-delay:.00s; }
+.fabDial.fabDialOpen .fabDialAction:nth-child(2){ transition-delay:.04s; }
+.fabDial.fabDialOpen .fabDialAction:nth-child(3){ transition-delay:.08s; }
+.fabDial.fabDialOpen .fabDialAction:nth-child(4){ transition-delay:.12s; }
+.fabDialAction:active{ transform:scale(.94) !important; }
+.fabDialLabel{ font-size:.82rem; }
+
+/* §42 focus-visible ring — all interactive controls */
+:focus-visible{
+  outline:2px solid var(--gold-bright);
+  outline-offset:2px;
+  border-radius:4px;
+}
+.fabDialAction:focus-visible,
+.dockItem:focus-visible,
+.iconBtn:focus-visible{ outline-color:var(--gold-bright); outline-offset:3px; }
+
+/* ══════════════════════════════════════════════════════
+   NOTE MODAL  (§7 NOTE ACTION)
+══════════════════════════════════════════════════════ */
+.noteModal{
+  position:fixed; inset:0; z-index:200;
+  background:rgba(0,0,0,.65);
+  display:flex; align-items:flex-end; justify-content:center;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.noteModalBox{
+  width:100%; max-width:520px;
+  background:var(--void); border:1px solid var(--panel-border);
+  border-radius:20px 20px 0 0; padding:24px 20px 32px;
+  backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+}
+.noteModalTitle{ font-size:1.1rem; font-weight:700; color:var(--gold-bright); margin-bottom:16px; }
+.noteModalInput{
+  width:100%; background:rgba(255,255,255,.06);
+  border:1px solid var(--panel-border); border-radius:10px;
+  color:var(--parchment); font-family:var(--font-bengali); font-size:1rem;
+  line-height:1.7; padding:12px 14px; resize:none; box-sizing:border-box;
+}
+.noteModalInput::placeholder{ color:var(--ash-dim); }
+.noteModalActions{
+  display:flex; gap:10px; margin-top:16px; justify-content:flex-end;
+}
+.noteModalCancel, .noteModalSave{
+  border:none; border-radius:10px; padding:11px 22px;
+  font-size:.96rem; font-family:inherit; cursor:pointer; min-height:44px;
+}
+.noteModalCancel{ background:rgba(255,255,255,.08); color:var(--ash); }
+.noteModalSave{ background:var(--gold); color:#1a1200; font-weight:700; }
+
+/* ══════════════════════════════════════════════════════
+   FAB TOAST  (copy / note confirmation)
+══════════════════════════════════════════════════════ */
+.fabToast{
+  position:fixed; bottom:calc(var(--dock-height) + 24px + env(safe-area-inset-bottom) + 8px);
+  left:50%; transform:translateX(-50%);
+  background:rgba(30,26,16,.92); border:1px solid var(--panel-border);
+  color:var(--parchment); font-size:.9rem; padding:10px 20px;
+  border-radius:20px; z-index:300; pointer-events:none;
+  animation:toastIn .2s var(--transition-smooth) both, toastOut .3s .9s var(--transition-smooth) both;
+  white-space:nowrap;
+}
+@keyframes toastIn{ from{ opacity:0; transform:translateX(-50%) translateY(8px); } to{ opacity:1; transform:translateX(-50%) translateY(0); } }
+@keyframes toastOut{ to{ opacity:0; transform:translateX(-50%) translateY(6px); } }
+
+/* ══════════════════════════════════════════════════════
+   §24 CHAPTER SELECTOR SHEET
+══════════════════════════════════════════════════════ */
+.selectorSheet{
+  position:fixed; inset:0; z-index:150;
+  background:rgba(0,0,0,.55);
+  display:flex; align-items:flex-end;
+  /* Sheet is always present in DOM once opened; visibility via class */
+}
+.selectorSheetHandle{
+  width:36px; height:4px; border-radius:2px;
+  background:var(--ash-dim); margin:12px auto 8px; flex-shrink:0;
+}
+.selectorSheetHeader{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 20px 12px; border-bottom:1px solid var(--panel-border);
+}
+.selectorSheetTitle{ font-size:1rem; font-weight:600; color:var(--gold-bright); }
+.selectorSheetClose{
+  background:none; border:none; color:var(--ash); font-size:1.1rem;
+  cursor:pointer; padding:6px; min-width:44px; min-height:44px;
+  display:flex; align-items:center; justify-content:center;
+}
+.selectorSheetList{
+  overflow-y:auto; -webkit-overflow-scrolling:touch;
+  flex:1; padding:8px 0 env(safe-area-inset-bottom);
+  /* Never fixed height — content defines it (§17 Indic text safety rule applied to list too) */
+}
+.selectorSheet > div:last-child{ /* inner box */
+  width:100%; max-width:600px; margin:0 auto;
+  background:var(--void); border:1px solid var(--panel-border);
+  border-radius:20px 20px 0 0;
+  display:flex; flex-direction:column;
+  max-height:72vh;
+  transform:translateY(100%);
+  transition:transform .28s var(--transition-smooth);
+  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+}
+.selectorSheet.selectorSheetOpen > div:last-child{ transform:translateY(0); }
+.chapterSelectorItem{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 20px; border-bottom:1px solid rgba(255,255,255,.05);
+  color:var(--parchment); min-height:44px;
+}
+.chapterSelectorItem.active{ color:var(--gold-bright); background:rgba(212,162,76,.08); }
+.chapterSelectorActive{ color:var(--gold-bright); font-size:.7rem; }
+
+/* ══════════════════════════════════════════════════════
+   §14/§16 READER TYPOGRAPHIC HIERARCHY
+   Priority: Sanskrit > Bengali > Transliteration > Commentary > Metadata
+══════════════════════════════════════════════════════ */
+.readerSection{
+  margin-bottom:20px;
+  /* Never fixed height on scripture content (§17) */
+}
+.readerSection + .readerSection{
+  padding-top:20px;
+  border-top:1px solid var(--line);
+}
+.sanskritBlock{
+  font-size:calc(var(--reader-font-size, 18px) * 1.35);
+  line-height:1.9;        /* §17: Sanskrit ≈ 1.8–2.0 */
+  color:var(--gold-bright);
+  font-family:var(--font-sanskrit);
+  letter-spacing:.01em;
+  overflow-wrap:anywhere;
+  /* No fixed height, no overflow:hidden (§17) */
+}
+.bengaliTranslation, .field .fieldValue, .bengaliCommentary{
+  font-family:var(--font-bengali);
+  line-height:1.8;        /* §17: Bengali ≈ 1.7–1.9 */
+  font-size:var(--reader-font-size, 18px);
+  overflow-wrap:anywhere;
+}
+.transliteration{
+  font-family:var(--font-latin);
+  line-height:1.65;
+  font-style:italic;
+  color:var(--ash);
+  margin-top:10px;
+  font-size:.95rem;
+  overflow-wrap:anywhere;
+}
+.mantraMeta-line{
+  font-size:.82rem; color:var(--ash); margin-top:14px;
+  /* metadata comes last — lowest visual weight */
+}
+
+/* ══════════════════════════════════════════════════════
+   §37 PERFORMANCE — selective will-change, backdrop fallback
+══════════════════════════════════════════════════════ */
+/* will-change applied only to elements about to animate,
+   NOT to static verse blocks, section panels, or list items */
+.addBookmarkFab{ will-change:transform; }
+.fabDialAction{ will-change:transform, opacity; }
+.bottomDock{ will-change:transform; }
+.selectorSheet > div:last-child{ will-change:transform; }
+
+/* §37 backdrop-filter fallback for devices that don't support it */
+@supports not (backdrop-filter: blur(1px)) {
+  .appBar{ background:rgba(7,8,10,.97); }
+  .bottomDock{ background:rgba(7,8,10,.97); }
+  .fabDialAction{ background:rgba(20,17,14,.97); }
+  .noteModalBox{ background:rgba(7,8,10,.97); }
+  .selectorSheet > div:last-child{ background:rgba(7,8,10,.97); }
+}
+
+/* §40 — reduce decoration in reader screens.
+   When the reader is active (body has .reading class set by
+   showBookmarkFab → startReadingPositionTracking), dampen the ambient
+   background engine so it doesn't compete with the text. */
+body.reading::before{
+  opacity:.4;
+  animation-duration:40s; /* slower = less GPU work */
+}
+
+/* §44 colour contrast — active dock item uses more than just colour */
+.dockItem.active::before{
+  content:""; display:block; position:absolute;
+  top:6px; left:50%; transform:translateX(-50%);
+  width:20px; height:2px; border-radius:1px;
+  background:var(--gold-bright);
+}
+
+/* §47 responsive — no horizontal overflow at any target width */
+@media (max-width:360px){
+  .scriptureGrid{ grid-template-columns:1fr; }
+  .fabDialAction .fabDialLabel{ display:none; }
+  .categoryBar{ gap:6px; }
+  .categoryChip{ padding:8px 12px; font-size:.82rem; }
+}
+
