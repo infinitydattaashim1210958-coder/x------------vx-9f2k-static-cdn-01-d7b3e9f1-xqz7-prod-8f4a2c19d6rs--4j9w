@@ -1,0 +1,3892 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>স্বাধ্যায় — সমস্ত পৃষ্ঠা</title>
+<style>
+/* ═══════════════════════════════════════════
+   SHARED BASE — dark sacred theme tokens
+═══════════════════════════════════════════ */
+:root{
+  --void:#07080a;
+  --panel:rgba(20,17,14,.72);
+  --panel-border:rgba(212,162,76,.18);
+  --line:var(--panel-border);
+  --gold:#d4a24c;
+  --gold-bright:#f0c26a;
+  --parchment:#ede6d6;
+  --ash:#8d92a0;
+  --ash-dim:#5a5f6c;
+  --card-radius:12px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: "Noto Sans Bengali", "Noto Sans", Georgia, sans-serif;
+  background: var(--void);
+  color: var(--parchment);
+  line-height: 1.7;
+}
+
+/* ═══════════════════════════════════════════
+   COMBINED-FILE CHROME
+═══════════════════════════════════════════ */
+#top {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(7,8,10,.92);
+  border-bottom: 1px solid var(--panel-border);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  padding: 0 16px;
+}
+.site-title {
+  font-size: 1.1rem; font-weight: 700;
+  color: var(--gold-bright); padding: 14px 0 6px;
+  letter-spacing: .04em;
+}
+.page-nav {
+  list-style: none;
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 8px 0 12px; overflow-x: auto;
+  -ms-overflow-style: none; scrollbar-width: none;
+}
+.page-nav::-webkit-scrollbar { display: none; }
+.page-nav-link {
+  display: inline-block; color: var(--ash);
+  text-decoration: none; font-size: .78rem;
+  background: rgba(255,255,255,.06);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px; padding: 5px 12px;
+  white-space: nowrap;
+  transition: color .15s, border-color .15s;
+}
+.page-nav-link:hover { color: var(--gold-bright); border-color: var(--gold); }
+
+main { max-width: 760px; margin: 0 auto; padding: 24px 16px 80px; }
+
+.page-section { margin-bottom: 12px; }
+.page-section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 18px; padding-bottom: 10px;
+  border-bottom: 1px solid var(--panel-border);
+}
+.page-section-header h2 {
+  font-size: 1.3rem; font-weight: 700; color: var(--gold-bright);
+}
+.top-link {
+  color: var(--ash); text-decoration: none; font-size: .82rem;
+  padding: 4px 10px; border: 1px solid var(--panel-border);
+  border-radius: 10px;
+}
+.top-link:hover { color: var(--gold); border-color: var(--gold); }
+.page-divider {
+  border: none; border-top: 1px solid var(--panel-border);
+  margin: 32px 0;
+}
+
+/* ═══════════════════════════════════════════
+   DEDUPLICATED PAGE STYLES
+═══════════════════════════════════════════ */
+/* === settings.html === */
+:root{
+  --void:#07080a; --panel:#101318; --line:rgba(200,190,170,.12);
+  --gold:#d4a24c; --gold-bright:#f0c26a; --parchment:#ede6d6;
+  --ash:#8d92a0; --ash-dim:#5a5f6c;
+}
+*{box-sizing:border-box;}
+body{
+    margin:0;
+    font-family:"Noto Sans Bengali",Georgia,serif;
+    background:var(--void);
+    color:var(--parchment);
+.header{
+    display:flex; align-items:center; gap:14px;
+    padding:18px 16px;
+    background:rgba(7,8,10,.92);
+    border-bottom:1px solid var(--line);
+    position:sticky; top:0; z-index:5;
+.backLink{
+    color:var(--gold); text-decoration:none; font-size:1.3rem; flex-shrink:0;
+.headerTitle{ font-size:1.1rem; font-weight:bold; color:var(--parchment); }
+.section{
+    margin:16px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:12px;
+    overflow:hidden;
+.sectionTitle{
+    padding:14px 16px;
+    font-size:.95rem;
+    font-weight:bold;
+    color:var(--gold);
+    background:rgba(212,162,76,.06);
+.item{
+    display:flex;
+    align-items:center;
+    padding:16px;
+    text-decoration:none;
+    gap:12px;
+.item:last-child{ border-bottom:none; }
+.item:active{ background:rgba(212,162,76,.08); }
+.icon{ font-size:1.3rem; }
+.arrow{ margin-left:auto; opacity:.5; color:var(--gold); }
+.footer{
+    text-align:center;
+    padding:30px 15px 50px;
+    font-size:.85rem;
+    color:var(--ash);
+.footer b{ color:var(--gold-bright); }
+/* === reader-settings.html === */
+    font-family:"Noto Sans Bengali",sans-serif;
+    background:#fafafa;
+    color:#222;
+    background:#8b4513;
+    color:white;
+    padding:20px;
+    font-size:22px;
+.card{
+    background:white;
+    margin:15px;
+    padding:18px;
+    border-radius:15px;
+    box-shadow:0 2px 8px #ddd;
+label{
+display:block;
+margin-bottom:8px;
+select,input{
+width:100%;
+padding:12px;
+margin-bottom:18px;
+border-radius:10px;
+border:1px solid #ccc;
+font-size:16px;
+.switch{
+justify-content:space-between;
+button{
+border:none;
+padding:12px 20px;
+.preview{
+.dark{
+background:#121212;
+.dark .card,
+.dark .preview{
+background:#1e1e1e;
+/* === language-settings.html === */
+select{
+margin-bottom:20px;
+padding:15px 0;
+border-bottom:1px solid #eee;
+margin-top:20px;
+padding:15px;
+background:#fff4e6;
+/* === library-settings.html === */
+.item:last-child{
+padding:10px 15px;
+.danger{
+background:#b22222;
+.storage{
+margin-top:15px;
+.progress{
+height:10px;
+background:#ddd;
+.progress div{
+height:100%;
+width:35%;
+/* === notification-settings.html === */
+.setting{
+.setting:last-child{
+input[type="checkbox"]{
+width:22px;
+height:22px;
+input[type="time"]{
+.info{
+/* === search-settings.html === */
+padding:12px 18px;
+.history{
+/* === privacy-policy.html === */
+    padding:24px;
+    font-family:Arial, sans-serif;
+    line-height:1.8;
+    color:#ffffff;
+.container{
+    max-width:900px;
+    margin:auto;
+h1,h2,h3{
+    color:#FFD54F;
+p,li{
+    color:#dddddd;
+    padding:22px;
+    margin:20px 0;
+    border-radius:16px;
+    box-shadow:0 4px 15px rgba(0,0,0,0.4);
+.highlight{
+    color:#4FC3F7;
+    margin-top:40px;
+    color:#aaaaaa;
+/* === terms.html === */
+*{
+padding:0;
+box-sizing:border-box;
+font-family:Segoe UI,Arial,sans-serif;
+background:#0f172a;
+color:#f8fafc;
+line-height:1.9;
+max-width:950px;
+margin:40px auto;
+background:#1e293b;
+padding:35px;
+border-radius:20px;
+box-shadow:0 10px 35px rgba(0,0,0,.35);
+h1{
+font-size:40px;
+margin-bottom:10px;
+.subtitle{
+color:#cbd5e1;
+margin-bottom:30px;
+.notice{
+background:#273549;
+border-left:5px solid #FFD54F;
+h2{
+margin-top:35px;
+margin-bottom:15px;
+padding-left:12px;
+p{
+margin-bottom:16px;
+text-align:justify;
+ul{
+margin-left:28px;
+li{
+margin:8px 0;
+a{
+a:hover{
+text-decoration:underline;
+strong{
+margin-top:50px;
+padding-top:20px;
+border-top:1px solid #475569;
+color:#94a3b8;
+/* === disclaimer.html === */
+    font-family:"Noto Sans Bengali","Noto Sans",sans-serif;
+    line-height:1.7;
+font-size:24px;
+color:#8b4513;
+font-size:20px;
+padding:25px;
+color:#777;
+/* === licenses.html === */
+    font-family:Arial,sans-serif;
+/* === contact.html === */
+font-family:"Noto Sans",sans-serif;
+/* === feedback.html === */
+textarea{
+height:150px;
+/* === report-bug.html === */
+input,textarea{
+height:120px;
+/* === faq.html === */
+.question{
+/* === about-chaturveda.html === */
+    font-family:"Noto Sans","Noto Sans Bengali",sans-serif;
+    margin-top:0;
+h3{
+    padding-left:20px;
+.quote{
+    font-style:italic;
+    padding:30px;
+
+/* ═══════════════════════════════════════════
+   OVERRIDES — ensure dark-theme consistency
+   (individual pages may have light-mode styles)
+═══════════════════════════════════════════ */
+body { background: var(--void) !important; color: var(--parchment) !important; }
+a { color: var(--gold); }
+a:hover { color: var(--gold-bright); }
+.header, .nav-header { display: none !important; }  /* each page's own nav — not needed */
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+</style>
+</head>
+<body>
+
+<header id="top">
+  <div class="site-title">🕉 স্বাধ্যায় — সমস্ত পৃষ্ঠা</div>
+  <nav aria-label="পৃষ্ঠা নেভিগেশন">
+    <ul class="page-nav">
+  <li><a class="page-nav-link" href="#settings">⚙️ Settings</a></li>
+  <li><a class="page-nav-link" href="#reader-settings">📖 Reader Settings</a></li>
+  <li><a class="page-nav-link" href="#language-settings">🌐 Language Settings</a></li>
+  <li><a class="page-nav-link" href="#library-settings">📚 Library & Storage</a></li>
+  <li><a class="page-nav-link" href="#notification-settings">🔔 Notifications</a></li>
+  <li><a class="page-nav-link" href="#search-settings">🔍 Search Settings</a></li>
+  <li><a class="page-nav-link" href="#privacy">🛡 Privacy Policy</a></li>
+  <li><a class="page-nav-link" href="#terms">📄 Terms & Conditions</a></li>
+  <li><a class="page-nav-link" href="#disclaimer">⚖️ Disclaimer</a></li>
+  <li><a class="page-nav-link" href="#licenses">📜 Licenses</a></li>
+  <li><a class="page-nav-link" href="#contact">📧 Contact</a></li>
+  <li><a class="page-nav-link" href="#feedback">💡 Feedback</a></li>
+  <li><a class="page-nav-link" href="#report-bug">🐞 Report a Bug</a></li>
+  <li><a class="page-nav-link" href="#faq">❓ FAQ</a></li>
+  <li><a class="page-nav-link" href="#about">🕉 About স্বাধ্যায়</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main>
+
+<section id="settings" class="page-section">
+  <div class="page-section-header">
+    <h2>⚙️ Settings</h2>
+    <a class="top-link" href="#top" aria-label="উপরে যান">↑ উপরে</a>
+  </div>
+  </div>
+
+<div class="section">
+<div class="sectionTitle">📖 Reader</div>
+<a class="item" href="reader-settings.html">
+<span class="icon">📖</span>
+Reader Preferences
+<span class="arrow">›</span>
+</a>
+</div>
+
+<div class="section">
+<div class="sectionTitle">📚 Library</div>
+<a class="item" href="library-settings.html">
+<span class="icon">📚</span>
+Library Settings
+<span class="arrow">›</span>
+</a>
+</div>
+
+<div class="section">
+<div class="sectionTitle">🌐 Language</div>
+<a class="item" href="language-settings.html">
+<span class="icon">🌐</span>
+Language Settings
+<span class="arrow">›</span>
+</a>
+</div>
+
+<div class="section">
+<div class="sectionTitle">🔔 Notifications</div>
+<a class="item" href="notification-settings.html">
+<span class="icon">🔔</span>
+Notification Settings
+<span class="arrow">›</span>
+</a>
+</div>
+
+<div class="section">
+<div class="sectionTitle">🔍 Search</div>
+<a class="item" href="search-settings.html">
+<span class="icon">🔍</span>
+Search Settings
+<span class="arrow">›</span>
+</a>
+</div>
+
+<div class="section">
+<div class="sectionTitle">🛡 Privacy & Legal</div>
+<a class="item" href="privacy-policy.html">
+<span class="icon">📖</span>
+Privacy Policy
+<span class="arrow">›</span>
+</a>
+<a class="item" href="terms.html">
+<span class="icon">📄</span>
+Terms & Conditions
+<span class="arrow">›</span>
+</a>
+<a class="item" href="disclaimer.html">
+<span class="icon">⚖️</span>
+Disclaimer
+<span class="arrow">›</span>
+</a>
+<a class="item" href="licenses.html">
+<span class="icon">📜</span>
+Open Source Licenses
+<span class="arrow">›</span>
+</a>
+</div>
+
+<div class="section">
+<div class="sectionTitle">💬 Support</div>
+<a class="item" href="contact.html">
+<span class="icon">📧</span>
+Contact Us
+<span class="arrow">›</span>
+</a>
+<a class="item" href="feedback.html">
+<span class="icon">💡</span>
+Send Feedback
+<span class="arrow">›</span>
+</a>
+<a class="item" href="report-bug.html">
+<span class="icon">🐞</span>
+Report a Bug
+<span class="arrow">›</span>
+</a>
+<a class="item" href="faq.html">
+<span class="icon">❓</span>
+Help & FAQ
+<span class="arrow">›</span>
+</a>
+</div>
+
+<div class="section">
+<div class="sectionTitle">⭐ About</div>
+<a class="item" href="about-chaturveda.html">
+<span class="icon">🕉</span>
+About স্বাধ্যায়
+<span class="arrow">›</span>
+</a>
+</div>
+
+<div class="footer">
+<b>স্বাধ্যায়</b>
+<br>
+Version 1.0.0 (Build 1)
+<br><br>
+Developed by
+<br>
+<b>Ashim Datta</b>
+<br><br>
+© 2026 স্বাধ্যায়
+<br>
+All Rights Reserved.
+</div>
+</section>
+<hr class="page-divider">
+
+<section id="reader-settings" class="page-section">
+  <div class="page-section-header">
+    <h2>📖 Reader Settings</h2>
+    <a class="top-link" href="#top" aria-label="উপরে যান">↑ উপরে</a>
+  </div>
+  <div class="card">
+
+
+<label>
+Font Size
+</label>
+
+<input 
+type="range"
+id="fontSize"
+min="14"
+max="32"
+value="18">
+
+
+<label>
+Font Family
+</label>
+
+<select id="fontFamily">
+
+<option value="Noto Sans Bengali">
+Noto Sans Bengali
+</option>
+
+<option value="Sanskrit">
+Sanskrit
+</option>
+
+<option value="serif">
+Serif
+</option>
+
+<option value="sans-serif">
+Sans Serif
+</option>
+
+</select>
+
+
+
+<label>
+Theme
+</label>
+
+<select id="theme">
+
+<option value="auto">
+Auto
+</option>
+
+<option value="light">
+Light
+</option>
+
+<option value="dark">
+Dark
+</option>
+
+</select>
+
+
+
+<label>
+Line Height
+</label>
+
+<input 
+type="range"
+id="lineHeight"
+min="1"
+max="3"
+step="0.1"
+value="1.8">
+
+
+
+<label>
+Page Margin
+</label>
+
+<input 
+type="range"
+id="margin"
+min="10"
+max="50"
+value="20">
+
+
+
+<div class="switch">
+
+<span>
+Justify Text
+</span>
+
+<input 
+type="checkbox"
+id="justify"
+checked>
+
+</div>
+
+
+<br>
+
+
+<div class="switch">
+
+<span>
+Keep Screen Awake
+</span>
+
+<input 
+type="checkbox"
+id="awake">
+
+</div>
+
+
+<br>
+
+
+<button onclick="saveSettings()">
+
+💾 Save Preferences
+
+</button>
+
+
+</div>
+
+
+
+<div class="preview" id="preview">
+
+<h3>
+ऋग्वेदः । Rigveda
+</h3>
+
+<p>
+ॐ अग्निमीळे पुरोहितं यज्ञस्य देवमृत्विजम्।
+  
+আমি অগ্নির স্তব করি, যিনি যজ্ঞের পুরোহিত।
+</p>
+
+</div>
+</section>
+<hr class="page-divider">
+
+<section id="language-settings" class="page-section">
+  <div class="page-section-header">
+    <h2>🌐 Language Settings</h2>
+    <a class="top-link" href="#top" aria-label="উপরে যান">↑ উপরে</a>
+  </div>
+  <div class="card">
+
+
+<label>
+App Language
+</label>
+
+
+<select id="language">
+
+
+<option value="bn">
+বাংলা
+</option>
+
+
+<option value="en">
+English
+</option>
+
+
+<option value="sa">
+संस्कृतम्
+</option>
+
+
+</select>
+
+
+
+
+<label>
+Script Preference
+</label>
+
+
+<select id="script">
+
+
+<option value="bengali">
+বাংলা লিপি
+</option>
+
+
+<option value="devanagari">
+देवनागरी
+</option>
+
+
+<option value="english">
+Roman English
+</option>
+
+
+</select>
+
+
+
+
+
+<div class="switch">
+
+<span>
+Sanskrit Transliteration
+</span>
+
+
+<input 
+type="checkbox"
+id="transliteration">
+
+
+</div>
+
+
+<br>
+
+
+<button onclick="saveLanguage()">
+
+💾 Save Language
+
+</button>
+
+
+
+<div class="preview">
+
+
+<h3>
+Preview
+</h3>
+
+
+<p id="previewText">
+
+ॐ अग्निमीळे पुरोहितं यज्ञस्य देवमृत्विजम्।
+
+</p>
+
+
+</div>
+
+
+
+</div>
+</section>
+<hr class="page-divider">
+
+<section id="library-settings" class="page-section">
+  <div class="page-section-header">
+    <h2>📚 Library & Storage</h2>
+    <a class="top-link" href="#top" aria-label="উপরে যান">↑ উপরে</a>
+  </div>
+  <div class="card">
+
+
+<div class="item">
+
+<span>
+📥 Downloaded Books
+</span>
+
+<a href="#">
+Open
+</a>
+
+</div>
+
+
+
+<div class="item">
+
+<span>
+📖 Reading History
+</span>
+
+<a href="#">
+View
+</a>
+
+</div>
+
+
+
+<div class="item">
+
+<span>
+🔖 Bookmarks
+</span>
+
+<a href="#">
+Manage
+</a>
+
+</div>
+
+
+
+<div class="item">
+
+<span>
+⭐ Favorites
+</span>
+
+<a href="#">
+Manage
+</a>
+
+</div>
+
+
+</div>
+
+
+
+<div class="card">
+
+
+<h3>
+💾 Storage Usage
+</h3>
+
+
+<div class="storage">
+
+
+<p id="storageText">
+
+Calculating storage...
+
+</p>
+
+
+<div class="progress">
+
+<div id="storageBar"></div>
+
+</div>
+
+
+</div>
+
+
+</div>
+
+
+
+
+<div class="card">
+
+
+<h3>
+🧹 Cache Management
+</h3>
+
+
+<p>
+Temporary files, thumbnails and reading data can be cleared to free storage.
+</p>
+
+
+<button onclick="clearCache()" class="danger">
+
+Clear Cache
+
+</button>
+
+
+</div>
+</section>
+<hr class="page-divider">
+
+<section id="notification-settings" class="page-section">
+  <div class="page-section-header">
+    <h2>🔔 Notifications</h2>
+    <a class="top-link" href="#top" aria-label="উপরে যান">↑ উপরে</a>
+  </div>
+  <div class="card">
+
+
+
+<div class="setting">
+
+<span>
+📱 App Updates
+</span>
+
+<input 
+type="checkbox"
+id="updates">
+
+</div>
+
+
+
+<div class="setting">
+
+<span>
+📚 New Books
+</span>
+
+<input 
+type="checkbox"
+id="newBooks">
+
+</div>
+
+
+
+
+<div class="setting">
+
+<span>
+📖 Reading Reminder
+</span>
+
+<input 
+type="checkbox"
+id="reminder">
+
+</div>
+
+
+
+<br>
+
+
+<label>
+
+⏰ Reminder Time
+
+</label>
+
+
+<br>
+
+
+<input 
+type="time"
+id="time"
+value="06:00">
+
+
+
+<br><br>
+
+
+<button onclick="saveNotifications()">
+
+💾 Save Preferences
+
+</button>
+
+
+<div class="info">
+
+🕉 Daily Vedic Study Reminder
+
+<br><br>
+
+Read a mantra, sukta or scripture every day.
+
+</div>
+
+
+</div>
+</section>
+<hr class="page-divider">
+
+<section id="search-settings" class="page-section">
+  <div class="page-section-header">
+    <h2>🔍 Search Settings</h2>
+    <a class="top-link" href="#top" aria-label="উপরে যান">↑ উপরে</a>
+  </div>
+  <div class="card">
+
+
+<label>
+Default Search Language
+</label>
+
+
+<br>
+
+
+<select id="searchLanguage">
+
+
+<option value="all">
+All Languages
+</option>
+
+
+<option value="bn">
+বাংলা
+</option>
+
+
+<option value="sa">
+Sanskrit
+</option>
+
+
+<option value="en">
+English
+</option>
+
+
+</select>
+
+
+<br><br>
+
+
+
+
+<div class="setting">
+
+<span>
+🔤 Search Transliteration
+</span>
+
+
+<input 
+type="checkbox"
+id="translit">
+
+</div>
+
+
+
+<div class="setting">
+
+<span>
+📜 Search Mantra
+</span>
+
+
+<input 
+type="checkbox"
+id="mantra"
+checked>
+
+</div>
+
+
+
+
+<div class="setting">
+
+<span>
+📖 Search Sukta
+</span>
+
+
+<input 
+type="checkbox"
+id="sukta"
+checked>
+
+</div>
+
+
+
+
+<div class="setting">
+
+<span>
+🕉 Search Mandala
+</span>
+
+
+<input 
+type="checkbox"
+id="mandala"
+checked>
+
+</div>
+
+
+
+<br>
+
+
+
+<button onclick="saveSearchSettings()">
+
+💾 Save Settings
+
+</button>
+
+
+
+</div>
+
+
+
+
+<div class="card">
+
+
+<h3>
+🕘 Recent Searches
+</h3>
+
+
+<div class="history" id="history">
+
+No recent searches
+
+</div>
+
+
+<br>
+
+
+<button 
+class="danger"
+onclick="clearHistory()">
+
+Clear Search History
+
+</button>
+
+
+
+</div>
+</section>
+<hr class="page-divider">
+
+<section id="privacy" class="page-section">
+  <div class="page-section-header">
+    <h2>🛡 Privacy Policy</h2>
+    <a class="top-link" href="#top" aria-label="উপরে যান">↑ উপরে</a>
+  </div>
+  <div class="container">
+
+
+<div class="card">
+
+<h1>Privacy Policy</h1>
+
+<p>
+<strong>Application:</strong> স্বাধ্যায় App
+</p>
+
+<p>
+<strong>Effective Date:</strong> July 12, 2026
+</p>
+
+<p>
+This Privacy Policy explains how স্বাধ্যায় App ("App", "we", "our", or "us") collects, uses, protects, and manages information when you use our application.
+</p>
+
+<p>
+We respect your privacy and are committed to maintaining transparency regarding the handling of user information.
+</p>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>1. Introduction</h2>
+
+<p>
+স্বাধ্যায় App is an educational and spiritual application designed to provide access to Vedic scriptures, Sanskrit texts, translations, commentaries, articles, and knowledge resources.
+</p>
+
+<p>
+The App is developed for educational, cultural, research, and personal learning purposes.
+</p>
+
+<p>
+By installing or using স্বাধ্যায় App, you acknowledge that you have read and understood this Privacy Policy.
+</p>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>2. About স্বাধ্যায় App</h2>
+
+<p>
+স্বাধ্যায় App aims to preserve and present traditional knowledge through modern digital technology.
+</p>
+
+<p>
+The App may provide:
+</p>
+
+<ul>
+
+<li>Vedic scriptures</li>
+
+<li>Sanskrit literature</li>
+
+<li>Translations and explanations</li>
+
+<li>Educational articles</li>
+
+<li>Spiritual and cultural resources</li>
+
+<li>Reading and learning tools</li>
+
+</ul>
+
+<p>
+The primary purpose of the App is knowledge sharing and educational development.
+</p>
+
+</div>
+<div class="card">
+
+<h2>3. Information We Collect</h2>
+
+<p>
+To provide and improve স্বাধ্যায় App services, certain information may be collected depending on how you use the application.
+</p>
+
+
+<h3>A. Information You Provide Voluntarily</h3>
+
+<p>
+You may provide information when you contact us, submit feedback, report problems, or communicate with us.
+</p>
+
+<ul>
+
+<li>Name (if provided)</li>
+
+<li>Email address</li>
+
+<li>Feedback and suggestions</li>
+
+<li>Bug reports</li>
+
+<li>Messages or inquiries sent to us</li>
+
+</ul>
+
+<p>
+Providing this information is completely optional. You may use most features of the App without providing personal information.
+</p>
+
+
+<h3>B. Automatically Collected Technical Information</h3>
+
+<p>
+When you use the App, certain technical information may be collected automatically to improve performance and reliability.
+</p>
+
+<ul>
+
+<li>Device model</li>
+
+<li>Device manufacturer</li>
+
+<li>Android version</li>
+
+<li>Operating system information</li>
+
+<li>App version</li>
+
+<li>Screen size and resolution</li>
+
+<li>Language preference</li>
+
+<li>Time zone</li>
+
+<li>Anonymous device identifiers</li>
+
+<li>Crash reports and diagnostic information</li>
+
+<li>Performance data</li>
+
+</ul>
+
+<p>
+This information is generally collected in an aggregated or anonymous form and is used for improving application stability and user experience.
+</p>
+
+
+<h3>C. Usage Information</h3>
+
+<p>
+We may collect anonymous information about how users interact with the App, such as:
+</p>
+
+<ul>
+
+<li>Pages or sections opened</li>
+
+<li>Features used</li>
+
+<li>Search activity</li>
+
+<li>Reading preferences</li>
+
+<li>Session duration</li>
+
+<li>Navigation patterns</li>
+
+<li>Error occurrence</li>
+
+</ul>
+
+<p>
+This information helps us understand user needs and improve the design and functionality of the App.
+</p>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>4. Information We Do Not Collect</h2>
+
+<p>
+স্বাধ্যায় App does not intentionally collect sensitive personal information unless you voluntarily provide it for a specific purpose.
+</p>
+
+<p>
+We do not collect:</p>
+
+<ul>
+
+<li>Passwords</li>
+
+<li>Bank account details</li>
+
+<li>Credit or debit card information</li>
+
+<li>Government identification numbers</li>
+
+<li>Passport information</li>
+
+<li>Biometric information</li>
+
+<li>Health records</li>
+
+<li>Contacts list</li>
+
+<li>Call history</li>
+
+<li>SMS messages</li>
+
+<li>Personal photos</li>
+
+<li>Microphone recordings</li>
+
+<li>Private files stored on your device</li>
+
+</ul>
+
+<p>
+The App only accesses information necessary for providing its features.
+</p>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>5. Application Permissions</h2>
+
+<p>
+স্বাধ্যায় App may request certain permissions depending on available features.
+</p>
+
+
+<h3>Internet Permission</h3>
+
+<p>
+Used for loading online content, updating information, synchronizing data, and accessing required online services.
+</p>
+
+
+<h3>Notification Permission</h3>
+
+<p>
+Used for important announcements, updates, reminders, or new content notifications (if enabled).
+</p>
+
+
+<h3>Storage Permission (If Applicable)</h3>
+
+<p>
+Used only when users choose to download or save content such as documents, images, or educational materials.
+</p>
+
+<p>
+The App does not access unrelated files or modify personal data without user permission.
+</p>
+
+
+<p>
+Permissions are requested only when required for a specific function.
+</p>
+
+</div>
+<div class="card">
+
+<h2>6. How We Use Collected Information</h2>
+
+<p>
+Any information collected by স্বাধ্যায় App is used responsibly and only for legitimate purposes related to improving and maintaining the application.
+</p>
+
+<p>
+We may use information for the following purposes:
+</p>
+
+<ul>
+
+<li>
+Improve app performance, speed, and reliability.
+</li>
+
+<li>
+Identify and fix technical problems, bugs, and errors.
+</li>
+
+<li>
+Analyze application stability and user experience.
+</li>
+
+<li>
+Develop new features and improve existing features.
+</li>
+
+<li>
+Provide user support and respond to inquiries.
+</li>
+
+<li>
+Maintain application security and prevent misuse.
+</li>
+
+<li>
+Improve educational content organization and accessibility.
+</li>
+
+<li>
+Ensure compatibility with different Android devices.
+</li>
+
+</ul>
+
+
+<p>
+We do not sell, rent, or trade users' personal information to third parties.
+</p>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>7. Data Storage and Protection</h2>
+
+<p>
+স্বাধ্যায় App takes reasonable measures to protect information against unauthorized access, misuse, alteration, disclosure, or destruction.
+</p>
+
+
+<h3>Data Storage</h3>
+
+<p>
+Information may be stored in the following locations:
+</p>
+
+<ul>
+
+<li>
+On your personal device.
+</li>
+
+<li>
+Secure servers operated by trusted service providers.
+</li>
+
+<li>
+Infrastructure provided by third-party technology services.
+</li>
+
+</ul>
+
+
+<h3>Security Measures</h3>
+
+<p>
+We may use appropriate technical and organizational safeguards, including:
+</p>
+
+<ul>
+
+<li>Secure communication methods where applicable.</li>
+
+<li>Restricted access to collected information.</li>
+
+<li>Regular improvement of application security.</li>
+
+<li>Monitoring and fixing security issues.</li>
+
+</ul>
+
+
+<p>
+However, no electronic storage system or internet transmission method can be guaranteed to be 100% secure. Therefore, absolute security cannot be guaranteed.
+</p>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>8. Data Retention</h2>
+
+<p>
+We retain information only for as long as necessary to fulfill the purposes described in this Privacy Policy, improve our services, comply with legal requirements, or resolve disputes.
+</p>
+
+<p>
+When information is no longer required, reasonable steps may be taken to delete or anonymize it.
+</p>
+
+<p>
+Some technical information, such as anonymous crash reports, may be retained for a reasonable period to improve application stability.
+</p>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>9. Third-Party Services</h2>
+
+<p>
+স্বাধ্যায় App may use trusted third-party services to provide better performance, analytics, security, and functionality.
+</p>
+
+<p>
+These services may include:
+</p>
+
+<ul>
+
+<li>Google Play Services</li>
+
+<li>Firebase Services</li>
+
+<li>Firebase Crashlytics</li>
+
+<li>Google Analytics for Firebase</li>
+
+<li>Google AdMob (if advertisements are enabled)</li>
+
+</ul>
+
+
+<p>
+These third-party providers may collect and process information according to their own privacy policies.
+</p>
+
+<p>
+স্বাধ্যায় App is not responsible for the independent privacy practices of third-party services.
+</p>
+
+</div>
+<div class="card">
+
+<h2>10. Advertising and Third-Party Advertisements</h2>
+
+<p>
+স্বাধ্যায় App may display advertisements in the future through trusted advertising partners if advertising features are enabled.
+</p>
+
+<p>
+Advertising providers may collect certain anonymous or technical information to provide and improve advertisements, including:
+</p>
+
+<ul>
+
+<li>Advertising ID</li>
+
+<li>Device information</li>
+
+<li>App interaction information</li>
+
+<li>Approximate location information (where permitted)</li>
+
+</ul>
+
+<p>
+Users may have options to manage personalized advertising preferences through their device settings or Google account settings according to applicable policies.
+</p>
+
+<p>
+স্বাধ্যায় App does not directly collect or store payment information related to advertisements.
+</p>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>11. Analytics and Performance Monitoring</h2>
+
+<p>
+To improve application quality, স্বাধ্যায় App may use analytics and performance monitoring services.
+</p>
+
+<p>
+These services help us understand:
+</p>
+
+<ul>
+
+<li>Application performance</li>
+
+<li>Crash frequency</li>
+
+<li>Technical errors</li>
+
+<li>User interaction patterns</li>
+
+<li>Feature usage</li>
+
+</ul>
+
+<p>
+The collected information is used only for improving the App experience and maintaining reliability.
+</p>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>12. Children's Privacy</h2>
+
+<p>
+স্বাধ্যায় App is designed as an educational and cultural application suitable for general audiences.
+</p>
+
+<p>
+We do not knowingly collect personal information from children in violation of applicable laws.
+</p>
+
+<p>
+If a parent or legal guardian believes that a child has provided personal information without appropriate permission, they may contact us. We will take reasonable steps to review and remove such information where applicable.
+</p>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>13. User Rights and Choices</h2>
+
+<p>
+Depending on your location and applicable laws, you may have certain rights regarding your information.
+</p>
+
+<p>
+These rights may include:
+</p>
+
+<ul>
+
+<li>Request access to personal information.</li>
+
+<li>Request correction of inaccurate information.</li>
+
+<li>Request deletion of personal information.</li>
+
+<li>Withdraw consent where applicable.</li>
+
+<li>Ask how your information is collected and used.</li>
+
+<li>Object to certain types of data processing.</li>
+
+</ul>
+
+<p>
+To exercise these rights, please contact us using the information provided below.
+</p>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>14. International Data Processing</h2>
+
+<p>
+Depending on the services used by স্বাধ্যায় App, information may be processed or stored in countries other than your country of residence.
+</p>
+
+<p>
+By using the App, you acknowledge that your information may be processed according to this Privacy Policy and applicable laws.
+</p>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>15. Changes to This Privacy Policy</h2>
+
+<p>
+We may update this Privacy Policy from time to time due to changes in technology, application features, legal requirements, or our privacy practices.
+</p>
+
+<p>
+The updated Privacy Policy will be published with a revised effective date.
+</p>
+
+<p>
+Continued use of স্বাধ্যায় App after changes are published means you acknowledge the updated Privacy Policy.
+</p>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>16. Contact Information</h2>
+
+<p>
+If you have questions, suggestions, concerns, or requests regarding this Privacy Policy, you may contact us:
+</p>
+
+<ul>
+
+<li>
+<strong>Developer:</strong> Ashim Datta
+</li>
+
+<li>
+<strong>Application:</strong> স্বাধ্যায় App
+</li>
+
+<li>
+<strong>Email:</strong> your-email@example.com
+</li>
+
+<li>
+<strong>Website:</strong> https://arsa-siddanto.blogspot.com
+</li>
+
+</ul>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>17. Consent</h2>
+
+<p>
+By downloading, installing, accessing, or using স্বাধ্যায় App, you acknowledge that you have read, understood, and agreed to this Privacy Policy.
+</p>
+
+<p>
+If you do not agree with any part of this Privacy Policy, please discontinue using the application.
+</p>
+
+</div>
+
+
+
+<div class="footer">
+
+<p>
+<strong>স্বাধ্যায় App</strong>
+</p>
+
+<p>
+Privacy Policy Version 1.0
+</p>
+
+<p>
+Developed by <strong>Ashim Datta</strong>
+</p>
+
+<p>
+© 2026 স্বাধ্যায় App. All Rights Reserved.
+</p>
+
+</div>
+
+
+</div>
+</section>
+<hr class="page-divider">
+
+<section id="terms" class="page-section">
+  <div class="page-section-header">
+    <h2>📄 Terms & Conditions</h2>
+    <a class="top-link" href="#top" aria-label="উপরে যান">↑ উপরে</a>
+  </div>
+  <div class="container">
+
+<div class="card">
+
+<h1>Terms &amp; Conditions</h1>
+
+<p class="subtitle">
+<strong>স্বাধ্যায় App</strong><br>
+Effective Date: July 12, 2026
+</p>
+
+<div class="notice">
+Welcome to <strong>স্বাধ্যায় App</strong>. These Terms &amp; Conditions ("Terms") govern your access to and use of the স্বাধ্যায় App, including all related content, features, and services. By downloading, installing, or using the App, you agree to be legally bound by these Terms. If you do not agree with any provision of these Terms, please discontinue using the App immediately.
+</div>
+
+<h2>1. Introduction</h2>
+
+<p>
+স্বাধ্যায় App is an educational and spiritual mobile application developed to provide access to Vedic literature, Sanskrit scriptures, translations, commentaries, educational articles, devotional resources, and other related materials. The App is intended to promote learning, cultural understanding, historical research, and personal study of the Vedas and associated literature.
+</p>
+
+<p>
+These Terms constitute a legally binding agreement between you ("User", "You", or "Your") and the developer of স্বাধ্যায় App ("Developer", "We", "Our", or "Us"). By accessing or using the App, you confirm that you have read, understood, and accepted these Terms.
+</p>
+
+<h2>2. Acceptance of Terms</h2>
+
+<p>
+By using স্বাধ্যায় App, you agree that:
+</p>
+
+<ul>
+
+<li>You have read and understood these Terms &amp; Conditions.</li>
+
+<li>You agree to comply with all applicable laws and regulations.</li>
+
+<li>You will use the App responsibly and lawfully.</li>
+
+<li>You accept any future updates or modifications to these Terms.</li>
+
+<li>You are responsible for your activities while using the App.</li>
+
+</ul>
+
+<p>
+If you do not agree with any part of these Terms, you should immediately stop using the App.
+</p>
+
+<h2>3. Definitions</h2>
+
+<p>
+For the purpose of these Terms:
+</p>
+
+<ul>
+
+<li><strong>App</strong> means স্বাধ্যায় App, including its software, content, updates, and services.</li>
+
+<li><strong>User</strong> means any individual who downloads, installs, accesses, or uses the App.</li>
+
+<li><strong>Developer</strong> means Ashim Datta, the creator and owner of স্বাধ্যায় App.</li>
+
+<li><strong>Content</strong> means all text, graphics, images, icons, documents, translations, commentaries, audio, videos, source code, databases, and educational materials available through the App.</li>
+
+<li><strong>Services</strong> means all features, functions, and resources provided through স্বাধ্যায় App.</li>
+
+</ul>
+
+<h2>4. Eligibility</h2>
+
+<p>
+স্বাধ্যায় App is intended for users of all ages who are interested in educational and spiritual learning.
+</p>
+
+<p>
+If you are below the minimum legal age required in your country to enter into a legally binding agreement, you should use the App only under the supervision and consent of a parent or legal guardian.
+</p>
+
+<p>
+By using the App, you represent that you have the legal capacity to accept these Terms under the laws applicable in your jurisdiction.
+</p>
+
+<h2>5. License to Use the App</h2>
+
+<p>
+Subject to your compliance with these Terms, the Developer grants you a limited, non-exclusive, non-transferable, non-sublicensable, and revocable license to download, install, and use স্বাধ্যায় App solely for your personal, educational, and non-commercial purposes.
+</p>
+
+<p>
+This license does not transfer ownership of the App or any intellectual property rights. All rights not expressly granted remain reserved by the Developer.
+</p>
+
+<p>
+You may not:
+</p>
+
+<ul>
+
+<li>Sell, rent, lease, sublicense, or distribute the App.</li>
+
+<li>Modify or create derivative works from the App.</li>
+
+<li>Reverse engineer, decompile, or disassemble the App except where permitted by applicable law.</li>
+
+<li>Use the App for unlawful or commercial purposes without prior written permission.</li>
+
+<li>Remove or alter copyright notices, trademarks, or proprietary markings contained within the App.</li>
+
+</ul><h2>6. Acceptable Use</h2>
+
+<p>
+You agree to use স্বাধ্যায় App responsibly, ethically, and in accordance with all applicable laws and regulations. The App is intended solely for personal, educational, cultural, and non-commercial purposes unless expressly authorized by the Developer.
+</p>
+
+<p>
+When using the App, you agree to:
+</p>
+
+<ul>
+
+<li>Use the App only for lawful purposes.</li>
+
+<li>Respect the rights of other users and third parties.</li>
+
+<li>Use the App in a manner that does not interfere with its normal operation.</li>
+
+<li>Comply with all applicable local, national, and international laws.</li>
+
+<li>Use the educational content responsibly and respectfully.</li>
+
+</ul>
+
+<h2>7. Prohibited Activities</h2>
+
+<p>
+To maintain the integrity, security, and reliability of স্বাধ্যায় App, you must not:
+</p>
+
+<ul>
+
+<li>Reverse engineer, decompile, disassemble, or modify the App except where permitted by law.</li>
+
+<li>Attempt to gain unauthorized access to the App, its servers, databases, or related systems.</li>
+
+<li>Upload, distribute, or transmit viruses, malware, ransomware, spyware, or other harmful software.</li>
+
+<li>Use automated scripts, bots, crawlers, or scraping tools to copy or extract content.</li>
+
+<li>Copy, reproduce, republish, or redistribute substantial portions of the App's content without prior written permission.</li>
+
+<li>Remove, alter, or conceal copyright notices, trademarks, logos, or proprietary markings.</li>
+
+<li>Use the App to promote unlawful, abusive, defamatory, fraudulent, hateful, or misleading activities.</li>
+
+<li>Interfere with the security, functionality, or availability of the App.</li>
+
+<li>Attempt to bypass technical protections or security mechanisms implemented within the App.</li>
+
+<li>Use the App in any manner that could damage, disable, overload, or impair its operation.</li>
+
+</ul>
+
+<h2>8. Intellectual Property Rights</h2>
+
+<p>
+Unless otherwise stated, all content available within স্বাধ্যায় App—including but not limited to text, graphics, images, icons, layouts, designs, logos, application interfaces, source code, databases, educational materials, translations, and documentation—is protected by applicable copyright, trademark, and other intellectual property laws.
+</p>
+
+<p>
+Ownership of all original App content remains with the Developer or the respective copyright holders.
+</p>
+
+<p>
+You are granted only a limited license to use the App for personal and educational purposes. No ownership rights are transferred to you.
+</p>
+
+<p>
+You may not reproduce, distribute, publish, modify, publicly display, commercially exploit, or create derivative works from any original App content without prior written permission, except where permitted under applicable copyright law.
+</p>
+
+<h2>9. Educational & Religious Content Disclaimer</h2>
+
+<p>
+স্বাধ্যায় App is intended exclusively as an educational, cultural, historical, and spiritual learning resource.
+</p>
+
+<p>
+The App may contain Sanskrit texts, translations, commentaries, interpretations, historical references, and educational materials obtained from various publicly available or licensed sources.
+</p>
+
+<p>
+Interpretations of religious or historical texts may differ among scholars, educational institutions, and traditions. The inclusion of any translation, commentary, or interpretation should not be interpreted as the only authoritative viewpoint.
+</p>
+
+<p>
+Users are encouraged to consult original scriptures and qualified scholars for detailed academic or religious guidance.
+</p>
+
+<p>
+The Developer does not guarantee that every translation or interpretation is free from scholarly disagreement or future revision.
+</p>
+
+<h2>10. Third-Party Links & Services</h2>
+
+<p>
+The App may contain links to external websites, online resources, or third-party services for the convenience of users.
+</p>
+
+<p>
+Examples may include:
+</p>
+
+<ul>
+
+<li>Official websites</li>
+
+<li>Educational resources</li>
+
+<li>Google Play Services</li>
+
+<li>Firebase services</li>
+
+<li>Google AdMob (if enabled)</li>
+
+<li>External reference materials</li>
+
+</ul>
+
+<p>
+These third-party services are operated independently and are governed by their own terms, privacy policies, and practices. স্বাধ্যায় App does not control or assume responsibility for the availability, accuracy, content, security, or policies of any third-party website or service.
+</p>
+
+<p>
+Accessing external resources is entirely at your own discretion and risk.
+</p><h2>11. Updates and Modifications</h2>
+
+<p>
+To improve performance, security, reliability, and user experience, স্বাধ্যায় App may receive updates, bug fixes, security patches, content revisions, or new features from time to time. These updates may be installed automatically or may require you to download a newer version from the official app store.
+</p>
+
+<p>
+We reserve the right to modify, replace, suspend, or discontinue any feature, functionality, or content of the App at any time without prior notice. While we strive to maintain backward compatibility whenever possible, certain updates may require the latest version of the App to continue using specific features.
+</p>
+
+<p>
+Your continued use of the App after any update or modification constitutes your acceptance of the revised version and these Terms &amp; Conditions.
+</p>
+
+<h2>12. Availability of Services</h2>
+
+<p>
+We aim to keep স্বাধ্যায় App available and functional at all times. However, uninterrupted availability cannot be guaranteed.
+</p>
+
+<p>
+The App or certain features may become temporarily unavailable due to maintenance, server upgrades, technical failures, software updates, internet connectivity issues, force majeure events, or circumstances beyond our reasonable control.
+</p>
+
+<p>
+We reserve the right to suspend, modify, or discontinue any part of the App without liability where necessary for operational, legal, security, or technical reasons.
+</p>
+
+<h2>13. Disclaimer of Warranties</h2>
+
+<p>
+স্বাধ্যায় App is provided on an <strong>"AS IS"</strong> and <strong>"AS AVAILABLE"</strong> basis without warranties of any kind, whether express, implied, statutory, or otherwise, to the fullest extent permitted by applicable law.
+</p>
+
+<p>
+We do not warrant that:
+</p>
+
+<ul>
+
+<li>The App will always be available without interruption.</li>
+
+<li>The App will operate without errors or defects.</li>
+
+<li>Any errors will be corrected immediately.</li>
+
+<li>The App will be compatible with every device or operating system.</li>
+
+<li>The content will always be complete, accurate, or current.</li>
+
+<li>The App or its servers are free from viruses, malware, or other harmful components.</li>
+
+</ul>
+
+<p>
+Your use of the App is entirely at your own risk.
+</p>
+
+<h2>14. Limitation of Liability</h2>
+
+<p>
+To the fullest extent permitted by law, the Developer, contributors, licensors, and affiliates of স্বাধ্যায় App shall not be liable for any direct, indirect, incidental, special, consequential, exemplary, or punitive damages arising from or related to your use of, or inability to use, the App.
+</p>
+
+<p>
+This limitation includes, but is not limited to:
+</p>
+
+<ul>
+
+<li>Loss of data or information.</li>
+
+<li>Loss of profits or business opportunities.</li>
+
+<li>Device malfunction or software incompatibility.</li>
+
+<li>Service interruptions or downtime.</li>
+
+<li>Errors, omissions, or inaccuracies in educational or religious content.</li>
+
+<li>Reliance placed upon information obtained through the App.</li>
+
+<li>Damages resulting from third-party services, websites, or external resources.</li>
+
+</ul>
+
+<p>
+Nothing in these Terms excludes liability where such exclusion is prohibited by applicable law.
+</p>
+
+<h2>15. Indemnification</h2>
+
+<p>
+You agree to indemnify, defend, and hold harmless the Developer, contributors, licensors, and affiliates of স্বাধ্যায় App from and against any claims, liabilities, damages, losses, expenses, costs, or legal fees arising out of or relating to:
+</p>
+
+<ul>
+
+<li>Your misuse of the App.</li>
+
+<li>Your violation of these Terms &amp; Conditions.</li>
+
+<li>Your infringement of any intellectual property or other legal rights.</li>
+
+<li>Your unlawful or negligent conduct while using the App.</li>
+
+</ul>
+
+<h2>16. Suspension or Termination</h2>
+
+<p>
+We reserve the right, at our sole discretion, to suspend, restrict, or permanently terminate your access to স্বাধ্যায় App, with or without prior notice, if:
+</p>
+
+<ul>
+
+<li>You violate these Terms &amp; Conditions.</li>
+
+<li>Your activities compromise the security or integrity of the App.</li>
+
+<li>Required by law, regulation, or a lawful request from a competent authority.</li>
+
+<li>Necessary for maintenance, security, or operational reasons.</li>
+
+<li>The App or a particular service is discontinued.</li>
+
+</ul>
+
+<p>
+Termination of your access does not affect any rights, obligations, or liabilities that arose prior to the date of termination.
+</p><h2>17. Governing Law</h2>
+
+<p>
+These Terms &amp; Conditions shall be governed by and interpreted in accordance with the applicable laws of the jurisdiction in which the Developer operates. Any disputes arising out of or relating to these Terms or your use of স্বাধ্যায় App shall be subject to the exclusive jurisdiction of the competent courts unless otherwise required by applicable law.
+</p>
+
+<h2>18. Force Majeure</h2>
+
+<p>
+The Developer shall not be held responsible for any delay, interruption, or failure to perform obligations under these Terms due to events beyond reasonable control, including but not limited to natural disasters, floods, earthquakes, pandemics, war, terrorism, civil unrest, labor disputes, power failures, internet outages, cyberattacks, government actions, or failures of third-party service providers.
+</p>
+
+<p>
+During such events, our obligations shall be suspended for the duration of the event and resumed as soon as reasonably possible.
+</p>
+
+<h2>19. Severability</h2>
+
+<p>
+If any provision of these Terms &amp; Conditions is determined by a court or competent authority to be unlawful, invalid, or unenforceable, that provision shall be deemed severed from these Terms. The remaining provisions shall continue in full force and effect to the maximum extent permitted by law.
+</p>
+
+<h2>20. Waiver</h2>
+
+<p>
+Failure by the Developer to enforce any right or provision of these Terms shall not constitute a waiver of such right or provision. Any waiver shall be effective only if made expressly in writing.
+</p>
+
+<h2>21. Entire Agreement</h2>
+
+<p>
+These Terms &amp; Conditions, together with the Privacy Policy and any additional legal notices published within the App, constitute the entire agreement between you and the Developer regarding your use of স্বাধ্যায় App and supersede all prior agreements, communications, or understandings relating to the App.
+</p>
+
+<h2>22. Changes to These Terms</h2>
+
+<p>
+We reserve the right to revise or update these Terms &amp; Conditions at any time to reflect changes in applicable laws, technology, services, or operational practices.
+</p>
+
+<p>
+The revised Terms become effective immediately upon publication within the App or on our official website. Your continued use of স্বাধ্যায় App after such changes constitutes your acceptance of the updated Terms.
+</p>
+
+<h2>23. Contact Information</h2>
+
+<p>
+If you have any questions, concerns, suggestions, or requests regarding these Terms &amp; Conditions, please contact us:
+</p>
+
+<ul>
+
+<li><strong>Developer:</strong> Ashim Datta</li>
+
+<li><strong>Application:</strong> স্বাধ্যায় App</li>
+
+<li><strong>Email:</strong> your-email@example.com</li>
+
+<li><strong>Website:</strong> <a href="https://arsa-siddanto.blogspot.com" target="_blank">https://arsa-siddanto.blogspot.com</a></li>
+
+</ul>
+
+<h2>24. Acknowledgement</h2>
+
+<p>
+By downloading, installing, accessing, or using স্বাধ্যায় App, you acknowledge that you have read, understood, and agreed to be legally bound by these Terms &amp; Conditions and the accompanying Privacy Policy.
+</p>
+
+<div class="notice">
+
+<strong>Legal Notice</strong><br><br>
+
+These Terms &amp; Conditions are intended to establish a clear legal relationship between you and the Developer of স্বাধ্যায় App. We encourage you to review this document periodically, as it may be updated to reflect changes in legal requirements, technology, or the services provided by the App.
+
+</div>
+
+<div class="footer">
+
+<p><strong>স্বাধ্যায় App</strong></p>
+
+<p>Version 1.0.0</p>
+
+<p>Developed by <strong>Ashim Datta</strong></p>
+
+<p>
+© 2026 স্বাধ্যায় App. All Rights Reserved.
+</p>
+
+</div>
+
+</div>
+
+</div>
+</section>
+<hr class="page-divider">
+
+<section id="disclaimer" class="page-section">
+  <div class="page-section-header">
+    <h2>⚖️ Disclaimer</h2>
+    <a class="top-link" href="#top" aria-label="উপরে যান">↑ উপরে</a>
+  </div>
+  <div class="container">
+
+
+<h2>
+1. General Information
+</h2>
+
+<p>
+
+স্বাধ্যায় is a digital platform created for reading, studying, and exploring Vedic literature, Sanskrit texts, translations, and related educational materials.
+
+</p>
+
+<p>
+
+The content provided in this application is intended for educational, spiritual, cultural, and research purposes only.
+
+</p>
+
+
+
+<h2>
+2. Accuracy of Content
+</h2>
+
+<p>
+
+We make reasonable efforts to provide accurate and reliable information. However, স্বাধ্যায় does not guarantee that all texts, translations, interpretations, or references are completely error-free.
+
+</p>
+
+<p>
+
+Users are encouraged to consult original scriptures, qualified scholars, and authentic sources for deeper academic or religious studies.
+
+</p>
+
+
+
+
+<h2>
+3. Religious & Philosophical Content
+</h2>
+
+<p>
+
+স্বাধ্যায় presents Vedic texts and philosophical materials from available traditional and academic sources.
+
+</p>
+
+<p>
+
+Interpretations of scriptures may vary among different scholars, traditions, and schools of thought. স্বাধ্যায় does not intend to promote hatred, discrimination, or disrespect toward any individual, community, or belief system.
+
+</p>
+
+
+
+
+<h2>
+4. No Professional Advice
+</h2>
+
+<p>
+
+The information available in this application should not be considered professional religious, legal, medical, financial, or academic advice.
+
+</p>
+
+<p>
+
+Users should seek appropriate guidance from qualified professionals whenever required.
+
+</p>
+
+
+
+
+<h2>
+5. External Sources & Links
+</h2>
+
+<p>
+
+স্বাধ্যায় may refer to external websites, books, publications, or resources. We do not control and are not responsible for the content, availability, or privacy practices of external sources.
+
+</p>
+
+
+
+
+<h2>
+6. Copyright & Intellectual Property
+</h2>
+
+<p>
+
+Ancient scriptures and public domain texts may belong to their respective traditional or historical sources.
+
+</p>
+
+<p>
+
+Modern translations, designs, compilations, software, and original materials created for স্বাধ্যায় remain protected under applicable copyright laws.
+
+</p>
+
+
+
+
+<h2>
+7. App Usage
+</h2>
+
+<p>
+
+Users are responsible for how they use the information provided through this application.
+
+</p>
+
+<p>
+
+স্বাধ্যায় and its developer shall not be liable for any loss, misunderstanding, or consequence arising from the use of this application.
+
+</p>
+
+
+
+
+<h2>
+8. Changes to Disclaimer
+</h2>
+
+<p>
+
+This disclaimer may be updated from time to time to reflect improvements, legal requirements, or changes in application features.
+
+</p>
+
+
+
+
+<h2>
+9. Contact
+</h2>
+
+<p>
+
+For questions or concerns regarding this disclaimer, please contact the স্বাধ্যায় development team.
+
+</p>
+
+
+</div>
+
+
+
+
+<div class="footer">
+
+<b>স্বাধ্যায়</b>
+
+<br>
+
+Version 1.0.0 (Build 1)
+
+<br><br>
+
+Developed by
+
+<br>
+
+<b>Ashim Datta</b>
+
+<br><br>
+
+© 2026 স্বাধ্যায়
+
+<br>
+
+All Rights Reserved.
+
+</div>
+</section>
+<hr class="page-divider">
+
+<section id="licenses" class="page-section">
+  <div class="page-section-header">
+    <h2>📜 Licenses</h2>
+    <a class="top-link" href="#top" aria-label="উপরে যান">↑ উপরে</a>
+  </div>
+  <div class="container">
+
+
+<div class="card">
+
+<h1>Open Source Licenses</h1>
+
+<p>
+<strong>Application:</strong> স্বাধ্যায় App
+</p>
+
+<p>
+<strong>Version:</strong> 1.0.0
+</p>
+
+<p>
+This application uses various open source software components and libraries. We are grateful to the developers and communities who contribute these technologies.
+</p>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>1. About Open Source Software</h2>
+
+<p>
+Open source software allows developers to use, modify, and distribute software according to the terms of their respective licenses.
+</p>
+
+<p>
+স্বাধ্যায় App uses open source libraries to provide better performance, security, compatibility, and user experience.
+</p>
+
+<p>
+Each software component remains the property of its respective copyright holders.
+</p>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>2. Android Open Source Components</h2>
+
+<p>
+স্বাধ্যায় App is built for the Android platform and may use Android open source technologies.
+</p>
+
+<ul>
+
+<li>
+Android SDK components
+</li>
+
+<li>
+AndroidX libraries
+</li>
+
+<li>
+Jetpack libraries
+</li>
+
+<li>
+Kotlin Android components
+</li>
+
+</ul>
+
+<p>
+These components are distributed under their respective open source licenses.
+</p>
+
+</div>
+<div class="card">
+
+<h2>3. AndroidX Libraries</h2>
+
+<p>
+স্বাধ্যায় App may use AndroidX libraries developed by Google to provide modern Android functionality, improved compatibility, and stable application performance.
+</p>
+
+<h3>License</h3>
+
+<p>
+Most AndroidX components are licensed under the 
+<strong>Apache License 2.0</strong>.
+</p>
+
+<h3>Copyright</h3>
+
+<p>
+Copyright © Google LLC
+</p>
+
+<p>
+AndroidX libraries include components such as:
+</p>
+
+<ul>
+
+<li>
+AndroidX AppCompat
+</li>
+
+<li>
+AndroidX Core
+</li>
+
+<li>
+AndroidX Activity
+</li>
+
+<li>
+AndroidX Fragment
+</li>
+
+<li>
+AndroidX Lifecycle
+</li>
+
+<li>
+AndroidX ConstraintLayout
+</li>
+
+</ul>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>4. Kotlin Programming Language</h2>
+
+<p>
+স্বাধ্যায় App may use Kotlin programming language and related Kotlin libraries for Android application development.
+</p>
+
+<h3>License</h3>
+
+<p>
+Kotlin is distributed under the 
+<strong>Apache License 2.0</strong>.
+</p>
+
+<h3>Copyright</h3>
+
+<p>
+Copyright © JetBrains s.r.o. and Kotlin contributors
+</p>
+
+<p>
+Kotlin provides modern programming features that improve application reliability, readability, and maintainability.
+</p>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>5. Google Play Services</h2>
+
+<p>
+স্বাধ্যায় App may integrate Google Play Services to provide required Android platform features and improved functionality.
+</p>
+
+<h3>License</h3>
+
+<p>
+Google Play Services are provided under Google's applicable terms and licenses.
+</p>
+
+<h3>Copyright</h3>
+
+<p>
+Copyright © Google LLC
+</p>
+
+<p>
+Google Play Services may include features related to:
+</p>
+
+<ul>
+
+<li>
+Application security
+</li>
+
+<li>
+Device compatibility
+</li>
+
+<li>
+Performance optimization
+</li>
+
+<li>
+Google service integration
+</li>
+
+</ul>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>6. Firebase Services</h2>
+
+<p>
+স্বাধ্যায় App may use Firebase services for application improvement, diagnostics, analytics, and reliability.
+</p>
+
+<p>
+Possible Firebase components include:
+</p>
+
+<ul>
+
+<li>
+Firebase Crashlytics
+</li>
+
+<li>
+Firebase Analytics
+</li>
+
+<li>
+Firebase Cloud Services
+</li>
+
+</ul>
+
+<h3>License</h3>
+
+<p>
+Firebase components are provided under Google's applicable licenses and service terms.
+</p>
+
+<h3>Copyright</h3>
+
+<p>
+Copyright © Google LLC
+</p>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>7. Material Design Components</h2>
+
+<p>
+স্বাধ্যায় App may use Material Design components to create a modern, accessible, and consistent user interface.
+</p>
+
+<h3>License</h3>
+
+<p>
+Material Components are generally distributed under the 
+<strong>Apache License 2.0</strong>.
+</p>
+
+<h3>Copyright</h3>
+
+<p>
+Copyright © Google LLC
+</p>
+
+</div>
+<div class="card">
+
+<h2>8. Third-Party Libraries</h2>
+
+<p>
+স্বাধ্যায় App may use additional third-party open source libraries depending on application requirements.
+</p>
+
+<p>
+Each library is used according to the terms and conditions of its respective open source license.
+</p>
+
+<p>
+Examples of possible licenses include:
+</p>
+
+<ul>
+
+<li>
+Apache License 2.0
+</li>
+
+<li>
+MIT License
+</li>
+
+<li>
+BSD License
+</li>
+
+<li>
+Other compatible open source licenses
+</li>
+
+</ul>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>9. Apache License 2.0</h2>
+
+<p>
+The Apache License 2.0 is a permissive open source license that allows users to use, modify, distribute, and include licensed software in other projects under certain conditions.
+</p>
+
+<h3>Main Conditions</h3>
+
+<ul>
+
+<li>
+Preservation of copyright notices.
+</li>
+
+<li>
+Inclusion of license information.
+</li>
+
+<li>
+Clear indication of significant modifications.
+</li>
+
+<li>
+Compliance with license requirements.
+</li>
+
+</ul>
+
+<p>
+Many Android and Google-developed components use the Apache License 2.0.
+</p>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>10. MIT License</h2>
+
+<p>
+The MIT License is a permissive software license that allows users to use, copy, modify, merge, publish, distribute, and modify licensed software.
+</p>
+
+<h3>Main Conditions</h3>
+
+<ul>
+
+<li>
+The original copyright notice must remain included.
+</li>
+
+<li>
+The license text must be included with distributed copies.
+</li>
+
+<li>
+The software is provided without warranty.
+</li>
+
+</ul>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>11. BSD License</h2>
+
+<p>
+BSD licenses are permissive open source licenses that allow redistribution and modification of software with certain attribution requirements.
+</p>
+
+<h3>Main Conditions</h3>
+
+<ul>
+
+<li>
+Copyright notices must be maintained.
+</li>
+
+<li>
+License terms must be followed.
+</li>
+
+<li>
+No unauthorized claims about original developers.
+</li>
+
+</ul>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>12. Copyright Ownership</h2>
+
+<p>
+All open source software remains the property of its respective authors, contributors, and copyright holders.
+</p>
+
+<p>
+The inclusion of these libraries in স্বাধ্যায় App does not transfer ownership of those components to the application developer.
+</p>
+
+<p>
+স্বাধ্যায় App respects the intellectual property rights and licensing requirements of all open source contributors.
+</p>
+
+</div>
+<div class="card">
+
+<h2>13. License Disclaimer</h2>
+
+<p>
+The open source libraries and components mentioned in this page are provided by their respective developers and organizations.
+</p>
+
+<p>
+স্বাধ্যায় App does not claim ownership of any third-party open source software included within the application.
+</p>
+
+<p>
+The use of these components is subject to the original license agreements, terms, and conditions provided by their respective copyright holders.
+</p>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>14. Complete License Information</h2>
+
+<p>
+For complete and updated license details of individual software components, users may refer to the official documentation and license files provided by the respective developers.
+</p>
+
+<p>
+The list of open source components may change when application updates introduce new features, remove existing libraries, or modify technical requirements.
+</p>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>15. Acknowledgement</h2>
+
+<p>
+We sincerely thank all open source developers, contributors, and communities whose work helps make modern software development possible.
+</p>
+
+<p>
+Their dedication, innovation, and contribution support the creation of reliable and accessible technology.
+</p>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>16. Contact Information</h2>
+
+<p>
+For questions regarding open source licenses used in স্বাধ্যায় App, please contact:
+</p>
+
+<ul>
+
+<li>
+<strong>Developer:</strong> Ashim Datta
+</li>
+
+<li>
+<strong>Application:</strong> স্বাধ্যায় App
+</li>
+
+<li>
+<strong>Email:</strong> your-email@example.com
+</li>
+
+<li>
+<strong>Website:</strong> https://arsa-siddanto.blogspot.com
+</li>
+
+</ul>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>17. License Updates</h2>
+
+<p>
+This Open Source Licenses page may be updated whenever new libraries or software components are added to স্বাধ্যায় App.
+</p>
+
+<p>
+The latest version of this document will always represent the currently used open source components.
+</p>
+
+</div>
+
+
+
+<div class="footer">
+
+<p>
+<strong>স্বাধ্যায় App</strong>
+</p>
+
+<p>
+Open Source Licenses
+</p>
+
+<p>
+Version 1.0.0
+</p>
+
+<p>
+Developed by <strong>Ashim Datta</strong>
+</p>
+
+<p>
+© 2026 স্বাধ্যায় App. All Rights Reserved.
+</p>
+
+</div>
+
+
+</div>
+</section>
+<hr class="page-divider">
+
+<section id="contact" class="page-section">
+  <div class="page-section-header">
+    <h2>📧 Contact</h2>
+    <a class="top-link" href="#top" aria-label="উপরে যান">↑ উপরে</a>
+  </div>
+  <div class="card">
+
+<h2>
+স্বাধ্যায় Support
+</h2>
+
+<p>
+For questions, suggestions, technical issues, or feedback regarding স্বাধ্যায় App, you may contact the development team.
+</p>
+
+
+<p>
+🧑‍💻 Developed by:
+<br>
+<b>Ashim Datta</b>
+</p>
+
+
+<p>
+📧 Email:
+<br>
+your-email@example.com
+</p>
+
+
+<p>
+🌐 Website:
+<br>
+Coming Soon
+</p>
+
+
+</div>
+
+
+<div class="footer">
+
+স্বাধ্যায়<br>
+Version 1.0.0 (Build 1)
+
+<br><br>
+
+© 2026 স্বাধ্যায়
+
+</div>
+</section>
+<hr class="page-divider">
+
+<section id="feedback" class="page-section">
+  <div class="page-section-header">
+    <h2>💡 Feedback</h2>
+    <a class="top-link" href="#top" aria-label="উপরে যান">↑ উপরে</a>
+  </div>
+  <div class="card">
+
+
+<p>
+Help us improve স্বাধ্যায় by sharing your suggestions.
+</p>
+
+
+<textarea placeholder="Write your feedback here..."></textarea>
+
+
+<br><br>
+
+
+<button onclick="sendFeedback()">
+Submit Feedback
+</button>
+
+
+</div>
+</section>
+<hr class="page-divider">
+
+<section id="report-bug" class="page-section">
+  <div class="page-section-header">
+    <h2>🐞 Report a Bug</h2>
+    <a class="top-link" href="#top" aria-label="উপরে যান">↑ উপরে</a>
+  </div>
+  <div class="card">
+
+
+<label>
+Problem Title
+</label>
+
+<input placeholder="Example: Book not opening">
+
+
+<label>
+Description
+</label>
+
+<textarea placeholder="Explain the issue..."></textarea>
+
+
+<label>
+Device Information
+</label>
+
+<input placeholder="Android version / Device model">
+
+
+<br>
+
+
+<button onclick="report()">
+Send Report
+</button>
+
+
+</div>
+</section>
+<hr class="page-divider">
+
+<section id="faq" class="page-section">
+  <div class="page-section-header">
+    <h2>❓ FAQ</h2>
+    <a class="top-link" href="#top" aria-label="উপরে যান">↑ উপরে</a>
+  </div>
+  <div class="card">
+
+
+<p class="question">
+What is স্বাধ্যায়?
+</p>
+
+<p>
+স্বাধ্যায় is a digital platform for reading and exploring Vedic texts, Sanskrit literature, and related knowledge resources.
+</p>
+
+
+
+<p class="question">
+Is স্বাধ্যায় free?
+</p>
+
+<p>
+Yes, স্বাধ্যায় is designed to provide accessible Vedic knowledge resources.
+</p>
+
+
+
+<p class="question">
+Can I read texts offline?
+</p>
+
+<p>
+Offline reading availability depends on downloaded content and app features.
+</p>
+
+
+
+<p class="question">
+How can I suggest new features?
+</p>
+
+<p>
+You can send suggestions through the Feedback section.
+</p>
+
+
+
+<p class="question">
+Where do the texts come from?
+</p>
+
+<p>
+Texts are collected from traditional, public-domain, and scholarly sources.
+</p>
+
+
+
+<p class="question">
+How can I report an error?
+</p>
+
+<p>
+Use the Report a Bug section inside the app.
+</p>
+
+
+</div>
+</section>
+<hr class="page-divider">
+
+<section id="about" class="page-section">
+  <div class="page-section-header">
+    <h2>🕉 About স্বাধ্যায়</h2>
+    <a class="top-link" href="#top" aria-label="উপরে যান">↑ উপরে</a>
+  </div>
+  <div class="container">
+
+
+
+<!-- SECTION 1 -->
+
+<div class="card">
+
+
+<h2>
+🕉 About স্বাধ্যায়
+</h2>
+
+
+<p>
+
+স্বাধ্যায় is a digital platform dedicated to preserving, organizing, and presenting the timeless knowledge of Vedic literature, Sanskrit scriptures, and Indian knowledge traditions.
+
+</p>
+
+
+<p>
+
+The application combines ancient wisdom with modern technology to create a simple, accessible, and immersive reading experience for students, researchers, and knowledge seekers.
+
+</p>
+
+
+<div class="quote">
+
+"Knowledge preserved through time becomes wisdom for future generations."
+
+</div>
+
+
+<h3>
+Purpose of স্বাধ্যায়
+</h3>
+
+
+<ul>
+
+<li>
+Digital preservation of Vedic texts
+</li>
+
+<li>
+Easy access to Sanskrit scriptures and translations
+</li>
+
+<li>
+Modern reading experience with customizable features
+</li>
+
+<li>
+Encouraging study and exploration of ancient knowledge
+</li>
+
+</ul>
+
+
+<h3>
+Core Features
+</h3>
+
+
+<ul>
+
+<li>
+📖 Vedic text library
+</li>
+
+<li>
+🔤 Multi-script and language support
+</li>
+
+<li>
+🔖 Bookmarks and reading history
+</li>
+
+<li>
+🌙 Personalized reader settings
+</li>
+
+<li>
+🔍 Powerful text search system
+</li>
+
+</ul>
+
+
+</div>
+
+
+
+
+
+<!-- SECTION 2 -->
+
+<div class="card">
+
+
+<h2>
+🧑‍💻 About Developer
+</h2>
+
+
+<h3>
+Ashim Datta
+</h3>
+
+
+<p>
+
+Founder and Developer of স্বাধ্যায়.
+
+</p>
+
+
+<p>
+
+স্বাধ্যায় is developed with the vision of combining software technology with the preservation and presentation of ancient Indian knowledge systems.
+
+</p>
+
+
+<p>
+
+The project focuses on creating a reliable digital environment where traditional texts can be explored through modern devices.
+
+</p>
+
+
+
+<h3>
+Development Philosophy
+</h3>
+
+
+<ul>
+
+<li>
+Technology should preserve valuable knowledge
+</li>
+
+<li>
+Ancient texts should be accessible in the digital era
+</li>
+
+<li>
+User experience should support meaningful learning
+</li>
+
+</ul>
+
+
+</div>
+
+
+
+
+
+<!-- SECTION 3 -->
+
+<div class="card">
+
+
+<h2>
+🎯 Mission
+</h2>
+
+
+<p>
+
+The mission of স্বাধ্যায় is to preserve and share Vedic knowledge through digital technology.
+
+</p>
+
+
+<p>
+
+The platform aims to make ancient scriptures easier to access, study, and understand while maintaining respect for traditional sources.
+
+</p>
+
+
+<h3>
+Our Goals
+</h3>
+
+
+<ul>
+
+<li>
+Create an organized digital library of Vedic literature
+</li>
+
+<li>
+Support students and researchers in their studies
+</li>
+
+<li>
+Provide multilingual reading opportunities
+</li>
+
+<li>
+Promote preservation of classical knowledge
+</li>
+
+</ul>
+
+
+</div><!-- SECTION 4 -->
+
+<div class="card">
+
+
+<h2>
+🌟 Vision
+</h2>
+
+
+<p>
+
+The vision of স্বাধ্যায় is to build a global digital platform that connects people with the timeless wisdom of Vedic literature and Indian knowledge traditions.
+
+</p>
+
+
+<p>
+
+Through technology, research, and thoughtful presentation, স্বাধ্যায় aims to preserve ancient knowledge for present and future generations.
+
+</p>
+
+
+<h3>
+Future Vision
+</h3>
+
+
+<ul>
+
+<li>
+Expansion of digital Vedic libraries
+</li>
+
+<li>
+Improved multilingual support
+</li>
+
+<li>
+Advanced search and study tools
+</li>
+
+<li>
+Integration of educational resources
+</li>
+
+<li>
+Better preservation of traditional texts
+</li>
+
+</ul>
+
+
+</div>
+
+
+
+
+
+
+<!-- SECTION 5 -->
+
+<div class="card">
+
+
+<h2>
+📚 Sources of Vedic Texts
+</h2>
+
+
+<p>
+
+স্বাধ্যায় presents Vedic literature collected from traditional Sanskrit sources, historical publications, public-domain resources, and scholarly references.
+
+</p>
+
+
+
+<h3>
+Primary Text Collections
+</h3>
+
+
+<ul>
+
+<li>
+Rigveda (ऋग्वेद)
+</li>
+
+<li>
+Yajurveda (यजुर्वेद)
+</li>
+
+<li>
+Samaveda (सामवेद)
+</li>
+
+<li>
+Atharvaveda (अथर्ववेद)
+</li>
+
+<li>
+Upanishads (उपनिषद्)
+</li>
+
+<li>
+Vedanga and related literature
+</li>
+
+</ul>
+
+
+
+
+<h3>
+Reference & Translation Policy
+</h3>
+
+
+<p>
+
+Translations, interpretations, and explanations may vary according to different scholars, traditions, and schools of thought.
+
+</p>
+
+
+<p>
+
+Users are encouraged to explore original Sanskrit texts and consult authentic academic and traditional references for deeper study.
+
+</p>
+
+
+<h3>
+Content Approach
+</h3>
+
+
+<ul>
+
+<li>
+Respectful presentation of traditional texts
+</li>
+
+<li>
+Educational and research-oriented approach
+</li>
+
+<li>
+Preservation of historical knowledge
+</li>
+
+</ul>
+
+
+</div>
+
+
+
+
+
+
+<!-- SECTION 6 -->
+
+<div class="card">
+
+
+<h2>
+© Copyright Information
+</h2>
+
+
+<p>
+
+Ancient Vedic scriptures, historical manuscripts, and public-domain works belong to their respective cultural and historical heritage.
+
+</p>
+
+
+
+<p>
+
+The স্বাধ্যায় application design, software code, user interface, compilation, original digital arrangement, and created materials are protected under applicable copyright laws.
+
+</p>
+
+
+
+<h3>
+Protected Materials
+</h3>
+
+
+<ul>
+
+<li>
+Application design and interface
+</li>
+
+<li>
+Original digital compilation
+</li>
+
+<li>
+Software implementation
+</li>
+
+<li>
+Original written materials
+</li>
+
+</ul>
+
+
+
+<h3>
+Usage Policy
+</h3>
+
+
+<p>
+
+Unauthorized copying, redistribution, modification, or commercial use of original স্বাধ্যায় materials without permission is prohibited.
+
+</p>
+
+
+<p>
+
+স্বাধ্যায় respects historical texts while protecting original creative and technical contributions.
+
+</p>
+
+
+</div><!-- SECTION 7 -->
+
+<div class="card">
+
+
+<h2>
+📜 App Information
+</h2>
+
+
+<ul>
+
+<li>
+<b>Application Name:</b> স্বাধ্যায়
+</li>
+
+
+<li>
+<b>Version:</b> 1.0.0
+</li>
+
+
+<li>
+<b>Build Number:</b> 1
+</li>
+
+
+<li>
+<b>Release Year:</b> 2026
+</li>
+
+
+<li>
+<b>Platform:</b> Android Application
+</li>
+
+
+<li>
+<b>Developer:</b> Ashim Datta
+</li>
+
+
+<li>
+<b>Purpose:</b> Digital preservation and exploration of Vedic knowledge
+</li>
+
+
+</ul>
+
+
+</div>
+
+
+
+
+
+
+<!-- SECTION 8 -->
+
+<div class="card">
+
+
+<h2>
+🔄 Changelog
+</h2>
+
+
+
+<h3>
+Version 1.0.0 (Build 1)
+</h3>
+
+
+
+<ul>
+
+<li>
+Initial release of স্বাধ্যায় application
+</li>
+
+
+<li>
+Introduction of digital Vedic text reading system
+</li>
+
+
+<li>
+Customizable reader preferences added
+</li>
+
+
+<li>
+Library management features introduced
+</li>
+
+
+<li>
+Bookmarks and reading history support added
+</li>
+
+
+<li>
+Multi-language and script support introduced
+</li>
+
+
+<li>
+Search system implemented
+</li>
+
+
+<li>
+Privacy, legal, and information sections added
+</li>
+
+
+<li>
+Modern user interface developed for comfortable reading
+</li>
+
+
+</ul>
+
+
+
+<h3>
+Future Updates
+</h3>
+
+
+<ul>
+
+<li>
+More Vedic texts and resources
+</li>
+
+<li>
+Improved search capabilities
+</li>
+
+<li>
+Additional language support
+</li>
+
+<li>
+Enhanced reading tools
+</li>
+
+</ul>
+
+
+</div>
+
+
+
+
+
+
+<!-- FOOTER -->
+
+
+<div class="footer">
+
+
+<b>
+স্বাধ্যায়
+</b>
+
+
+<br>
+
+
+Version 1.0.0 (Build 1)
+
+
+<br><br>
+
+
+Developed by
+
+
+<br>
+
+
+<b>
+Ashim Datta
+</b>
+
+
+<br><br>
+
+
+© 2026 স্বাধ্যায়
+
+
+<br>
+
+
+All Rights Reserved.
+
+
+</div>
+
+
+
+
+</div>
+</section>
+<hr class="page-divider">
+
+</main>
+
+<script>
+// Highlight active nav link as user scrolls
+const sections = document.querySelectorAll(".page-section");
+const links    = document.querySelectorAll(".page-nav-link");
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      links.forEach(l => l.classList.remove("active"));
+      const active = document.querySelector(`.page-nav-link[href="#${e.target.id}"]`);
+      if (active) active.classList.add("active");
+    }
+  });
+}, { rootMargin: "-20% 0px -70% 0px", threshold: 0 });
+sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
