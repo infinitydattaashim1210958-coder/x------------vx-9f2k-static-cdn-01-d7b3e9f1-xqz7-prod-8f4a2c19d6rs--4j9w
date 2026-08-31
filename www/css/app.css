@@ -1042,6 +1042,80 @@ body.reading::before{
   animation-duration:40s; /* slower = less GPU work */
 }
 
+/* ══════════════════════════════════════════════════════
+   §48 DIVINE AMBIENT FIELD — persistent "living" backdrop
+   Sits in index.html as a fixed sibling of #app (NOT inside it — #app
+   is fully replaced by router() on every navigation, so anything meant
+   to keep animating across screens without restarting must live outside
+   it). Three layers, cheapest-to-priciest:
+     1. glowOrb  — two huge soft radial-gradient blooms, drifting.
+        No filter:blur (expensive on WebView); softness comes from the
+        gradient falloff itself, same technique as body::before.
+     2. mote     — tiny twinkling "stars", opacity/scale pulse in place.
+     3. ember    — slow-drifting warm particles (extends the existing
+                   .sacredParticles loading-screen effect app-wide).
+   transform + opacity only throughout — GPU-composited, no layout/paint
+   cost regardless of particle count. Uses --gold-bright/--glow-primary
+   so it re-themes automatically with [data-accent] (emerald/indigo).
+══════════════════════════════════════════════════════ */
+.divineField{
+  position:fixed; inset:0; z-index:-1;
+  overflow:hidden; pointer-events:none; /* never blocks taps; never adds scroll-x (§47) */
+}
+
+.glowOrb{
+  position:absolute; width:60vmax; height:60vmax; border-radius:50%;
+  background:radial-gradient(circle, var(--glow-primary), transparent 65%);
+  opacity:.5;
+}
+.glowOrbA{ top:-20%; left:-15%; animation:orbDriftA 26s ease-in-out infinite alternate; }
+.glowOrbB{
+  bottom:-25%; right:-15%;
+  background:radial-gradient(circle, var(--glow-secondary), transparent 65%);
+  animation:orbDriftB 32s ease-in-out infinite alternate;
+}
+@keyframes orbDriftA{
+  from{ transform:translate3d(0,0,0) scale(1); }
+  to  { transform:translate3d(6%,4%,0) scale(1.08); }
+}
+@keyframes orbDriftB{
+  from{ transform:translate3d(0,0,0) scale(1); }
+  to  { transform:translate3d(-5%,-6%,0) scale(1.1); }
+}
+
+.motes, .embers{ position:absolute; inset:0; }
+.mote{
+  position:absolute; width:var(--size,3px); height:var(--size,3px); border-radius:50%;
+  background:var(--gold-bright); box-shadow:0 0 6px 1px var(--glow-primary);
+  animation-name:moteTwinkle; animation-timing-function:ease-in-out; animation-iteration-count:infinite;
+}
+@keyframes moteTwinkle{
+  0%,100%{ opacity:.12; transform:scale(.7); }
+  50%    { opacity:.9;  transform:scale(1.15); }
+}
+.ember{
+  position:absolute; bottom:-4%; width:var(--size,4px); height:var(--size,4px); border-radius:50%;
+  background:var(--gold-bright); opacity:0;
+  animation-name:emberRise; animation-timing-function:linear; animation-iteration-count:infinite;
+}
+@keyframes emberRise{
+  0%  { transform:translateY(0) translateX(0); opacity:0; }
+  10% { opacity:.45; }
+  50% { transform:translateY(-55vh) translateX(2vw); }
+  90% { opacity:.15; }
+  100%{ transform:translateY(-105vh) translateX(-2vw); opacity:0; }
+}
+
+/* Dampen alongside the existing ambient body::before during reading
+   (§40) — same rationale: don't compete with scripture text. */
+body.reading .divineField{ opacity:.35; }
+
+@media (prefers-reduced-motion: reduce){
+  .glowOrbA, .glowOrbB, .mote, .ember{ animation:none !important; }
+  .mote{ opacity:.5; }
+  .ember{ display:none; } /* motion *is* the effect; nothing useful to freeze onto */
+}
+
 /* §44 colour contrast — active dock item uses more than just colour */
 .dockItem.active::before{
   content:""; display:block; position:absolute;
