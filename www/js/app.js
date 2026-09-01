@@ -734,10 +734,11 @@ async function getDailyReflection() {
 
 // §11–12 — real reading-progress lookup per scripture card. Only shows a
 // percentage when ReadingPosition actually has one; never invented.
-async function getScriptureProgress(readingKey) {
+// Returns the full position record (not just scrollPercent) because the
+// card itself needs .hash too — see screenHome()'s gridCards below.
+async function getScripturePosition(readingKey) {
   if (!window.ReadingPosition || !readingKey) return null;
-  const pos = await window.ReadingPosition.getForScripture(readingKey);
-  return pos ? pos.scrollPercent : null;
+  return window.ReadingPosition.getForScripture(readingKey);
 }
 
 const HOME_GRID_PROGRESS_KEY = {
@@ -755,9 +756,16 @@ async function screenHome() {
 
   const gridCards = await Promise.all(availableSections.map(async (s) => {
     const progressKey = HOME_GRID_PROGRESS_KEY[s.route];
-    const progress = progressKey ? await getScriptureProgress(progressKey) : null;
+    const pos = progressKey ? await getScripturePosition(progressKey) : null;
+    const progress = pos ? pos.scrollPercent : null;
+    // If the person has an existing position in this scripture, the card
+    // itself should resume there (same destination as the "continue
+    // reading" banner) rather than always restarting at the top-level
+    // Kanda/Parba list — that list is still reachable from inside the
+    // reader's own tab bar, so no browsing capability is lost.
+    const cardHref = pos?.hash || s.route;
     return `
-      <a class="scriptureCard" href="${s.route}">
+      <a class="scriptureCard" href="${cardHref}">
         <div class="scriptureCardMedia" aria-hidden="true"><span class="scriptureCardGlyph">${s.icon}</span></div>
         <div class="scriptureCardBody">
           <div class="scriptureCardTitle">${escapeHtml(s.label)}</div>
