@@ -748,7 +748,7 @@ const HOME_GRID_PROGRESS_KEY = {
 
 async function screenHome() {
   showBack(false);
-  setTitle("চতুর্বেদ সংকলন");
+  setTitle("স্বাধ্যায় - ও৩ম্ কৃণ্বন্তো বিশ্বমার্যম্।");
 
   const availableSections = HOME_SECTIONS.filter(s => !s.soon);
   const soonSections = HOME_SECTIONS.filter(s => s.soon);
@@ -771,10 +771,10 @@ async function screenHome() {
   }));
 
   const soonItems = soonSections.map((s) => `
-    <div class="listItem comingSoon" aria-disabled="true">
-      <span class="icon">${s.icon}</span>
-      <span class="label">${escapeHtml(s.label)}</span>
-      <span class="badge">শীঘ্রই আসছে</span>
+    <div class="soonCard" aria-disabled="true">
+      <span class="soonIconBox">${s.icon}</span>
+      <span class="soonLabel">${escapeHtml(s.label)}</span>
+      <span class="soonBadge">শীঘ্রই আসছে</span>
     </div>`).join("");
 
   const continueReading = window.ReadingPosition ? await window.ReadingPosition.getLatest() : null;
@@ -784,28 +784,22 @@ async function screenHome() {
       <div class="continueReadingTitle">${escapeHtml(continueReading.title)}${continueReading.subtitle ? " · " + escapeHtml(continueReading.subtitle) : ""}</div>
     </div>` : "";
 
-  const categoryChips = availableSections.map(s => `
-    <a class="categoryChip" href="${s.route}"><span class="chipIcon">${s.icon}</span>${escapeHtml(s.label)}</a>
-  `).join("");
-
   const reflection = await getDailyReflection();
 
   root.innerHTML = `
     <div class="hero">
       ${PADMA_LOTUS_SVG}
       <div class="om">ओ३म्</div>
-      <div class="sub">Om Krinvanto Vishvam Aryam</div>
       ${reflection ? `
         <a class="dailyReflection" href="${reflection.href}">
           <div class="dailyReflectionLabel">✦ আজকের মন্ত্র</div>
           <div class="dailyReflectionExcerpt sanskritBlock" style="font-size:1.05rem;">${escapeHtml(reflection.excerpt)}</div>
           <div class="dailyReflectionRef">${escapeHtml(reflection.reference)}</div>
-        </a>` : `<div class="sub" style="margin-top:6px;">The Four Vedas & Valmiki Ramayana — সম্পূর্ণ সংকলন</div>`}
+        </a>` : ""}
     </div>
-    <div class="categoryBar">${categoryChips}</div>
     ${continueCard}
     <div class="scriptureGrid">${gridCards.join("")}</div>
-    ${soonItems ? `<div class="homeList" style="margin-top:16px;">${soonItems}</div>` : ""}`;
+    ${soonItems ? `<div class="soonGrid" style="margin-top:16px;">${soonItems}</div>` : ""}`;
 
   if (continueReading) {
     document.getElementById("continueReadingCard").addEventListener("click", () => {
@@ -2087,6 +2081,16 @@ function headingStyle(c) {
   return `text-align:${align};text-decoration:${decoration};font-size:${size}em;`;
 }
 
+// Some source packs embed the footnote number as a literal digit in the
+// text (e.g. গুরুগিরি — "...১"); others embed it as a true Unicode
+// superscript glyph (e.g. gopalon — "সোম⁵", U+2075, NOT the digit "5").
+// ref_number in the refs table is always the plain digit either way, so
+// matching must try both forms.
+const SUPERSCRIPT_DIGITS = { "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹" };
+function toSuperscriptDigits(numStr) {
+  return String(numStr).replace(/[0-9]/g, d => SUPERSCRIPT_DIGITS[d] || d);
+}
+
 function renderParagraphWithRefs(content, refs) {
   let text = esc(content);
   const footnotes = [];
@@ -2094,8 +2098,14 @@ function renderParagraphWithRefs(content, refs) {
     const refAnchor = `dbref-${r.para_seq}-${i}-${Math.random().toString(36).slice(2, 6)}`;
     let placed = false;
     if (r.ref_number) {
-      const pattern = new RegExp(`(?<![০-৯])${r.ref_number.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![০-৯])`);
-      const m = pattern.exec(text);
+      const escapedNum = r.ref_number.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const superscriptForm = toSuperscriptDigits(r.ref_number);
+      // Try the superscript glyph first — if the source embedded one, it's
+      // an unambiguous marker with no risk of matching stray body digits.
+      const superscriptPattern = new RegExp(superscriptForm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+      const plainPattern = new RegExp(`(?<![০-৯])${escapedNum}(?![০-৯])`);
+      let m = superscriptPattern.exec(text);
+      if (!m) m = plainPattern.exec(text);
       if (m) {
         const marker =
           `<sup class="dbRefMarkerWrap"><a href="javascript:void(0)" data-scroll-to="${refAnchor}" class="dbRefMarker">${esc(r.ref_number)}</a></sup>`;
@@ -2520,6 +2530,7 @@ async function screenReaderSettings() {
           <option value="gold">🟡 স্বর্ণালী (Gold)</option>
           <option value="emerald">🟢 পান্না (Emerald)</option>
           <option value="indigo">🔵 নীলাভ (Indigo)</option>
+          <option value="violet">🟣 বেগুনি (Violet)</option>
         </select>
       </div>
     </div>
