@@ -37,6 +37,13 @@
   --glow-primary:rgba(148,176,248,.22);
   --glow-secondary:rgba(180,120,235,.15);
 }
+[data-accent="violet"]{
+  --gold:#9b6fd6;
+  --gold-bright:#c9a6f5;
+  --panel-border:rgba(155,111,214,.26);
+  --glow-primary:rgba(201,166,245,.26);
+  --glow-secondary:rgba(100,130,220,.16);
+}
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;}
 body{
@@ -82,7 +89,7 @@ a{color:inherit;text-decoration:none;}
 /* -- Glassmorphic surfaces (curated set — not applied blanket-wide,
       per performance guidance: only the panels users actually look at). -- */
 .section, .mantraDetail, .bookCard, .card, .quickJumpBar, .homeList,
-.categoryBar, .bottomDock{
+.soonGrid, .bottomDock{
   backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
   isolation:isolate;
 }
@@ -173,24 +180,28 @@ a{color:inherit;text-decoration:none;}
 .scriptureTab.active{ background:var(--gold); color:#1a1200; border-color:var(--gold); font-weight:700; }
 .scriptureTab:active{ transform:scale(.96); }
 
-/* ---- Category quick-filter chips (Home) ---- */
-.categoryBar{
-  display:flex; gap:10px; overflow-x:auto; padding:4px 2px 18px;
-  -ms-overflow-style:none; scrollbar-width:none;
+/* ---- §49 Coming-soon শাস্ত্র grid (Home) — 2 columns, compact icon
+   slot sized to swap emoji → gif/image later with zero markup change:
+   .soonIconBox is a fixed 34×34 box regardless of what's inside it. ---- */
+.soonGrid{
+  display:grid; grid-template-columns:1fr 1fr; gap:10px;
 }
-.categoryBar::-webkit-scrollbar{ display:none; }
-.categoryChip{
-  flex:0 0 auto; display:flex; align-items:center; gap:8px;
+.soonCard{
+  display:flex; flex-direction:column; align-items:flex-start; gap:8px;
   background:var(--panel); border:1px solid var(--panel-border);
-  border-radius:20px; padding:10px 16px; color:var(--parchment);
-  font-size:.88rem; font-weight:600; white-space:nowrap;
-  transition:border-color .2s ease, box-shadow .2s ease, transform .15s var(--transition-smooth);
+  border-radius:var(--card-radius); padding:14px; opacity:.6;
 }
-.categoryChip:active{ transform:scale(.96); }
-.categoryChip .chipIcon{ font-size:1rem; }
-.categoryChip.active{
-  border-color:var(--gold); color:var(--gold-bright);
-  box-shadow:0 0 0 1px var(--gold) inset, 0 0 16px var(--glow-primary);
+.soonIconBox{
+  width:34px; height:34px; border-radius:9px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:1.15rem; line-height:1; flex-shrink:0;
+  background:radial-gradient(circle at 30% 20%, var(--glow-primary), transparent 65%);
+  overflow:hidden; /* future gif/img fills this box via object-fit:cover, no layout change */
+}
+.soonLabel{ font-size:.9rem; font-weight:600; color:var(--parchment); }
+.soonBadge{
+  font-size:.66rem; color:var(--ash); border:1px solid var(--line);
+  border-radius:20px; padding:3px 9px; white-space:nowrap;
 }
 
 .grid{ display:grid; grid-template-columns:1fr; gap:16px; }
@@ -828,7 +839,7 @@ body::before {
   .bookmarkPop, .sacredParticles span, .searchBox, .numberPickerSheet { animation: none !important; }
   .listItem::after, .numChip::after, .rangeItem::after, .mantraItem::after,
   .bookCard::after, .item::after, .tabBtn::after, .langChip::after { display: none; }
-  .bottomDock, .dockItem .dockIcon, .categoryChip, .scriptureTab { transition: none !important; }
+  .bottomDock, .dockItem .dockIcon, .soonCard, .scriptureTab { transition: none !important; }
   .fabDial .fabDialAction, .selectorSheet { transition: none !important; }
   .padmaHero .outerHalo, .padmaHero .orbitalRing, .padmaHero .glowCore { animation: none !important; }
 }
@@ -1128,7 +1139,8 @@ body.reading .divineField{ opacity:.35; }
 @media (max-width:360px){
   .scriptureGrid{ grid-template-columns:1fr; }
   .fabDialAction .fabDialLabel{ display:none; }
-  .categoryBar{ gap:6px; }
-  .categoryChip{ padding:8px 12px; font-size:.82rem; }
+  .soonGrid{ gap:8px; }
+  .soonCard{ padding:10px; }
+  .soonLabel{ font-size:.84rem; }
 }
 
