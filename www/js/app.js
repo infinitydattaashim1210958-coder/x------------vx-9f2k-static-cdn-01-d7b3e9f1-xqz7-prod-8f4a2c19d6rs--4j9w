@@ -2059,6 +2059,34 @@ function esc(s) {
   return d.innerHTML;
 }
 
+/**
+ * Builds the inline style for a paragraph <p> from the style columns
+ * captured at conversion time (paragraphs.is_bold / is_center / is_right /
+ * is_underline / font_size). font_size in the DB is the *source document's*
+ * point size (12pt = normal body text in the original book), so it's
+ * expressed relative to that 12pt baseline (1em) rather than applied as a
+ * literal px/pt value — this keeps proportions faithful to the original
+ * layout (a 48pt cover title becomes 4em, a 14pt section head becomes
+ * ~1.17em) without depending on the reader's base font size setting.
+ * Older packs (merged with defaults is_bold=0 etc., font_size=12.0) render
+ * exactly as before this change — this is purely additive.
+ */
+function paragraphStyle(p) {
+  const align = p.is_center ? "center" : p.is_right ? "right" : "justify";
+  const weight = p.is_bold ? "bold" : "normal";
+  const decoration = p.is_underline ? "underline" : "none";
+  const size = p.font_size ? (p.font_size / 12) : 1;
+  return `text-align:${align};line-height:1.9;margin:0 0 1em;white-space:pre-line;` +
+         `font-weight:${weight};text-decoration:${decoration};font-size:${size}em;`;
+}
+
+function headingStyle(c) {
+  const align = c.heading_center ? "center" : c.heading_right ? "right" : "left";
+  const decoration = c.heading_underline ? "underline" : "none";
+  const size = c.heading_size ? (c.heading_size / 12) : 1;
+  return `text-align:${align};text-decoration:${decoration};font-size:${size}em;`;
+}
+
 function renderParagraphWithRefs(content, refs) {
   let text = esc(content);
   const footnotes = [];
@@ -2138,7 +2166,7 @@ async function renderDbBookReader(bookId, entry, pendingPct) {
     const paraHtml = paras.map(p => {
       const { html, footnotes } = renderParagraphWithRefs(p.content, p.refs);
       allFootnotes.push(...footnotes);
-      return `<p style="text-align:justify;line-height:1.9;margin:0 0 1em;">${html}</p>`;
+      return `<p style="${paragraphStyle(p)}">${html}</p>`;
     }).join("");
 
     if (allFootnotes.length) {
@@ -2155,11 +2183,11 @@ async function renderDbBookReader(bookId, entry, pendingPct) {
 
     if (c.is_cover) {
       return `<section class="dbBookChapter" id="${c.chapter_id}" style="text-align:center;padding-bottom:24px;border-bottom:2px solid var(--gold-bright);margin-bottom:20px;">
-        <h1 style="color:var(--gold);">${esc(c.heading)}</h1>${paraHtml}
+        <h1 style="color:var(--gold);${headingStyle(c)}">${esc(c.heading)}</h1>${paraHtml}
       </section>`;
     }
     return `<section class="dbBookChapter" id="${c.chapter_id}" style="margin-top:2em;">
-      <h2 id="${c.chapter_id}-h" style="color:var(--gold);border-bottom:1px solid var(--line);padding-bottom:6px;">${esc(c.heading)}</h2>
+      <h2 id="${c.chapter_id}-h" style="color:var(--gold);border-bottom:1px solid var(--line);padding-bottom:6px;${headingStyle(c)}">${esc(c.heading)}</h2>
       ${paraHtml}${footnoteBlock}
     </section>`;
   }));

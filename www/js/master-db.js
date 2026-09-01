@@ -50,6 +50,18 @@ async function msQuery(sql, params = []) {
   return msRowsOf(result);
 }
 
+// Adds a column to an existing table if it isn't already there. Used for
+// schema migrations on installs that created the table before this column
+// existed (CREATE TABLE IF NOT EXISTS is a no-op on those).
+async function addColumnIfMissing(table, column, definition) {
+  try {
+    await msExec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition};`);
+  } catch (e) {
+    const msg = (e?.message || String(e));
+    if (!msg.includes("duplicate column name")) throw e;
+  }
+}
+
 /* ── Init: connection + schema + WAL ─────────────────────────────────── */
 
 async function initializeMasterDatabase() {
@@ -189,11 +201,15 @@ async function initializeMasterDatabase() {
     //    numeric pack id like the other three categories.
     await msExec(`
       CREATE TABLE IF NOT EXISTS library_book_chapters (
-        book_id     TEXT NOT NULL,
-        chapter_id  TEXT NOT NULL,
-        seq         INTEGER,
-        heading     TEXT,
-        is_cover    INTEGER DEFAULT 0,
+        book_id           TEXT NOT NULL,
+        chapter_id        TEXT NOT NULL,
+        seq               INTEGER,
+        heading           TEXT,
+        is_cover          INTEGER DEFAULT 0,
+        heading_bold      INTEGER DEFAULT 0,
+        heading_center    INTEGER DEFAULT 0,
+        heading_underline INTEGER DEFAULT 0,
+        heading_size      REAL DEFAULT 12.0,
         PRIMARY KEY (book_id, chapter_id)
       );
     `);
@@ -203,9 +219,29 @@ async function initializeMasterDatabase() {
         book_id     TEXT NOT NULL,
         chapter_id  TEXT NOT NULL,
         seq         INTEGER,
-        content     TEXT
+        content     TEXT,
+        is_bold      INTEGER DEFAULT 0,
+        is_center    INTEGER DEFAULT 0,
+        is_right     INTEGER DEFAULT 0,
+        is_underline INTEGER DEFAULT 0,
+        font_size    REAL DEFAULT 12.0
       );
     `);
+    // Migration for installs that already created these tables under the old
+    // (pre-style-columns) schema — CREATE TABLE IF NOT EXISTS above is a
+    // no-op for them, so the new columns have to be added explicitly.
+    // ALTER TABLE ... ADD COLUMN throws "duplicate column name" if it was
+    // already applied (fresh installs that just ran the CREATE TABLE above
+    // already have these columns), which is caught and ignored below.
+    await addColumnIfMissing("library_book_chapters", "heading_bold", "INTEGER DEFAULT 0");
+    await addColumnIfMissing("library_book_chapters", "heading_center", "INTEGER DEFAULT 0");
+    await addColumnIfMissing("library_book_chapters", "heading_underline", "INTEGER DEFAULT 0");
+    await addColumnIfMissing("library_book_chapters", "heading_size", "REAL DEFAULT 12.0");
+    await addColumnIfMissing("library_book_paragraphs", "is_bold", "INTEGER DEFAULT 0");
+    await addColumnIfMissing("library_book_paragraphs", "is_center", "INTEGER DEFAULT 0");
+    await addColumnIfMissing("library_book_paragraphs", "is_right", "INTEGER DEFAULT 0");
+    await addColumnIfMissing("library_book_paragraphs", "is_underline", "INTEGER DEFAULT 0");
+    await addColumnIfMissing("library_book_paragraphs", "font_size", "REAL DEFAULT 12.0");
     await msExec(`CREATE INDEX IF NOT EXISTS idx_lib_para_chapter ON library_book_paragraphs(book_id, chapter_id);`);
     // References are a child of one paragraph — a paragraph can carry more
     // than one footnote marker (e.g. "১।...২।..." in the same cell), which
@@ -551,11 +587,23 @@ async function removeMahabharataPack(parbaId) {
 
 /* ── 4. Digital Library books (db.gz) ────────────────────────────────
  * Source pack (the .db inside the downloaded .db.gz) is expected to have:
- *   chapters   (chapter_id TEXT PRIMARY KEY, seq INTEGER, heading TEXT, is_cover INTEGER)
- *   paragraphs (chapter_id TEXT, seq INTEGER, content TEXT)
+ *   chapters   (chapter_id TEXT PRIMARY KEY, seq INTEGER, heading TEXT, is_cover INTEGER,
+ *               [heading_bold, heading_center, heading_underline, heading_size — optional])
+ *   paragraphs (chapter_id TEXT, seq INTEGER, content TEXT,
+ *               [is_bold, is_center, is_right, is_underline, font_size — optional])
  *   refs       (chapter_id TEXT, para_seq INTEGER, ref_seq INTEGER, ref_number TEXT, ref_note TEXT)
+ * The bracketed columns were added for the style-preserving conversion
+ * pipeline (gopalon.db onward). Older packs (e.g. gurugiri.db) don't have
+ * them, so the merge detects what's actually in the attached source via
+ * PRAGMA table_info and fills in defaults (0 / 12.0) for whatever's missing
+ * rather than assuming every pack has the new columns.
  * bookId is the manifest.json string id (e.g. "gurugiri").
  */
+
+async function attachedTableColumns(alias, table) {
+  const rows = await msQuery(`PRAGMA ${alias}.table_info(${table});`);
+  return new Set(rows.map(r => r.name));
+}
 
 async function mergeLibraryBookPack(bookId, title, tempDbPath) {
   await initializeMasterDatabase();
@@ -570,15 +618,34 @@ async function mergeLibraryBookPack(bookId, title, tempDbPath) {
       await sqlite.execute({ database: MASTER_DB_NAME, statements: `DELETE FROM library_book_chapters WHERE book_id='${bid}';` });
       await sqlite.execute({ database: MASTER_DB_NAME, statements: `DELETE FROM library_book_paragraphs_fts WHERE book_id='${bid}';` });
 
+      const chapterCols = await attachedTableColumns(alias, "chapters");
+      const paraCols = await attachedTableColumns(alias, "paragraphs");
+
+      const chapCol = (name, fallback) => chapterCols.has(name) ? name : fallback;
+      const paraCol = (name, fallback) => paraCols.has(name) ? name : fallback;
+
       await sqlite.execute({
         database: MASTER_DB_NAME,
-        statements: `INSERT OR REPLACE INTO library_book_chapters (book_id, chapter_id, seq, heading, is_cover)
-                     SELECT '${bid}', chapter_id, seq, heading, is_cover FROM ${alias}.chapters;`,
+        statements: `INSERT OR REPLACE INTO library_book_chapters
+                     (book_id, chapter_id, seq, heading, is_cover, heading_bold, heading_center, heading_underline, heading_size)
+                     SELECT '${bid}', chapter_id, seq, heading, is_cover,
+                            ${chapCol("heading_bold", "0")},
+                            ${chapCol("heading_center", "0")},
+                            ${chapCol("heading_underline", "0")},
+                            ${chapCol("heading_size", "12.0")}
+                     FROM ${alias}.chapters;`,
       });
       await sqlite.execute({
         database: MASTER_DB_NAME,
-        statements: `INSERT INTO library_book_paragraphs (book_id, chapter_id, seq, content)
-                     SELECT '${bid}', chapter_id, seq, content FROM ${alias}.paragraphs;`,
+        statements: `INSERT INTO library_book_paragraphs
+                     (book_id, chapter_id, seq, content, is_bold, is_center, is_right, is_underline, font_size)
+                     SELECT '${bid}', chapter_id, seq, content,
+                            ${paraCol("is_bold", "0")},
+                            ${paraCol("is_center", "0")},
+                            ${paraCol("is_right", "0")},
+                            ${paraCol("is_underline", "0")},
+                            ${paraCol("font_size", "12.0")}
+                     FROM ${alias}.paragraphs;`,
       });
       await sqlite.execute({
         database: MASTER_DB_NAME,
@@ -605,7 +672,8 @@ async function isLibraryBookInstalled(bookId) {
 async function getLibraryBookChapters(bookId) {
   await initializeMasterDatabase();
   return msQuery(
-    `SELECT chapter_id, seq, heading, is_cover FROM library_book_chapters WHERE book_id=? ORDER BY seq`,
+    `SELECT chapter_id, seq, heading, is_cover, heading_bold, heading_center, heading_underline, heading_size
+     FROM library_book_chapters WHERE book_id=? ORDER BY seq`,
     [bookId]
   );
 }
@@ -613,7 +681,8 @@ async function getLibraryBookChapters(bookId) {
 async function getLibraryBookParagraphs(bookId, chapterId) {
   await initializeMasterDatabase();
   const paras = await msQuery(
-    `SELECT id, seq, content FROM library_book_paragraphs WHERE book_id=? AND chapter_id=? ORDER BY seq`,
+    `SELECT id, seq, content, is_bold, is_center, is_right, is_underline, font_size
+     FROM library_book_paragraphs WHERE book_id=? AND chapter_id=? ORDER BY seq`,
     [bookId, chapterId]
   );
   const refs = await msQuery(
