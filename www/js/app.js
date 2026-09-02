@@ -3362,6 +3362,16 @@ async function routeDispatch() {
   const hash = location.hash || "#/";
   const parts = hash.replace(/^#\//, "").split("/").filter(Boolean);
 
+  // Divine home skin (www/css/divine-home.css) is scoped entirely to
+  // [data-divine-home] / body:has(#app[data-divine-home]) selectors, so
+  // toggling this one attribute centrally — rather than touching every
+  // screenXxx() — is enough to apply it only on "#/" and strip it
+  // everywhere else. Reader/database screens are untouched by design.
+  root.removeAttribute("data-divine-home");
+  if (!parts.length) {
+    root.dataset.divineHome = "true";
+  }
+
   try {
     if (!parts.length) return await screenHome();
 
