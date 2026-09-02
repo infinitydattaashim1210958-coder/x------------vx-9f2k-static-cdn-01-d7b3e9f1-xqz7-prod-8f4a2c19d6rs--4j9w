@@ -1,0 +1,273 @@
+/* Divine Teachings visual skin
+   Add AFTER www/css/app.css.
+   Scoped to the home screen so reader/database screens are not redesigned. */
+
+:root{
+  --divine-bg:#05021c;
+  --divine-bg-2:#0b0329;
+  --divine-purple:#7f42d9;
+  --divine-violet:#b35cff;
+  --divine-magenta:#e66cff;
+  --divine-gold:#f4c96b;
+  --divine-gold-soft:#ffe8ae;
+  --divine-text:#f8f3ff;
+  --divine-muted:#b8a9cf;
+}
+
+#app[data-divine-home]{
+  position:relative;
+  max-width:760px;
+  min-height:calc(100vh - 58px);
+  padding:18px 18px calc(124px + env(safe-area-inset-bottom));
+  color:var(--divine-text);
+}
+
+body:has(#app[data-divine-home]){
+  background:
+    radial-gradient(circle at 72% 25%,rgba(116,45,230,.18),transparent 28%),
+    radial-gradient(circle at 22% 62%,rgba(76,29,177,.13),transparent 32%),
+    linear-gradient(180deg,#05021c 0%,#070225 52%,#100536 100%);
+}
+
+body:has(#app[data-divine-home]) .appBar{
+  background:rgba(5,2,28,.60);
+  border-bottom-color:rgba(173,91,255,.18);
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+}
+
+body:has(#app[data-divine-home]) #appTitle{
+  color:rgba(230,213,249,.68);
+  font-family:var(--font-sanskrit);
+  font-size:.82rem;
+  font-weight:500;
+}
+
+body:has(#app[data-divine-home]) .iconBtn{
+  width:42px;height:42px;padding:0;
+  display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid rgba(156,78,255,.34);
+  border-radius:50%;
+  background:rgba(38,12,78,.42);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 0 20px rgba(120,55,220,.10);
+  color:#d7baff;
+}
+
+#app[data-divine-home] .hero{
+  position:relative;
+  min-height:490px;
+  padding:4px 0 0;
+  text-align:left;
+}
+
+#app[data-divine-home] .hero::before{
+  content:"";
+  position:absolute;
+  width:330px;height:330px;
+  right:-20px;top:95px;
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(156,70,255,.26),transparent 66%);
+  filter:blur(12px);
+  pointer-events:none;
+}
+
+#app[data-divine-home] .hero .padmaHero{
+  position:absolute;
+  width:330px;height:330px;
+  right:-28px;top:95px;
+  margin:0;
+  z-index:1;
+  filter:drop-shadow(0 18px 28px rgba(88,25,170,.34));
+}
+
+#app[data-divine-home] .hero .om{
+  position:absolute;
+  left:10px;top:8px;
+  width:46px;height:46px;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:50%;
+  font-size:1.3rem;
+  color:var(--divine-gold-soft);
+  background:radial-gradient(circle,rgba(205,105,255,.32),rgba(48,12,93,.18) 62%,transparent 64%);
+  text-shadow:0 0 20px rgba(231,119,255,.65);
+  z-index:3;
+}
+
+#app[data-divine-home] .hero::after{
+  content:"Divine\A Teachings";
+  white-space:pre;
+  position:absolute;
+  left:0;top:92px;
+  z-index:4;
+  font-family:"Cormorant Garamond","Playfair Display",Georgia,serif;
+  font-size:clamp(3.1rem,13vw,5.4rem);
+  line-height:.91;
+  letter-spacing:-.035em;
+  color:#faf6ff;
+  text-shadow:0 2px 24px rgba(0,0,0,.35);
+  pointer-events:none;
+}
+
+#app[data-divine-home] .hero .sub{
+  position:absolute;
+  z-index:4;
+  left:0;top:250px;
+  width:46%;
+  color:#bcaed1;
+  font-family:"Cormorant Garamond","Noto Serif Bengali",Georgia,serif;
+  font-size:1.04rem;
+  line-height:1.45;
+  font-style:normal;
+}
+
+#app[data-divine-home] .hero .dailyReflection{display:none;}
+
+#app[data-divine-home] .scriptureGrid{
+  position:relative;
+  z-index:5;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;
+  margin-top:-2px;
+}
+
+#app[data-divine-home] .scriptureGrid::before{
+  content:"✦  Explore Wisdom";
+  position:absolute;
+  left:0;top:-42px;
+  color:#e8dcf5;
+  font-family:"Cormorant Garamond","Noto Serif Bengali",Georgia,serif;
+  font-size:1.12rem;
+}
+
+#app[data-divine-home] .scriptureCard{
+  min-width:0;height:142px;
+  display:flex;flex-direction:column;justify-content:space-between;
+  background:linear-gradient(150deg,rgba(61,20,111,.50),rgba(22,7,54,.58));
+  border:1px solid rgba(156,79,255,.42);
+  border-radius:18px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 12px 28px rgba(3,0,18,.28),0 0 24px rgba(102,44,190,.10);
+}
+
+#app[data-divine-home] .scriptureCardMedia{
+  height:82px;
+  background:radial-gradient(circle at 50% 38%,rgba(234,169,255,.22),transparent 54%);
+}
+
+#app[data-divine-home] .scriptureCardGlyph{
+  color:var(--divine-gold);
+  filter:drop-shadow(0 0 13px rgba(246,197,101,.38));
+}
+
+#app[data-divine-home] .scriptureCardBody{
+  padding:8px 10px 11px;
+  text-align:center;
+}
+
+#app[data-divine-home] .scriptureCardTitle{
+  font-family:"Cormorant Garamond","Noto Serif Bengali",Georgia,serif;
+  font-size:.88rem;
+  color:#eee4fa;
+  line-height:1.1;
+}
+
+#app[data-divine-home] .scriptureCardMeta,
+#app[data-divine-home] .scriptureCardProgress{display:none;}
+
+#app[data-divine-home] .soonGrid{
+  margin-top:58px !important;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;
+}
+
+#app[data-divine-home] .soonCard{
+  min-height:160px;
+  position:relative;
+  padding:15px;
+  justify-content:flex-end;
+  background:linear-gradient(160deg,rgba(49,15,92,.52),rgba(17,5,45,.70));
+  border:1px solid rgba(148,72,245,.38);
+  border-radius:18px;
+  opacity:1;
+  overflow:hidden;
+}
+
+#app[data-divine-home] .soonCard::before{
+  content:"";
+  position:absolute;inset:auto -20% -40px -20%;height:110px;
+  background:radial-gradient(ellipse,rgba(189,77,255,.28),transparent 65%);
+  filter:blur(10px);
+}
+
+#app[data-divine-home] .soonIconBox{
+  position:absolute;right:8px;bottom:12px;
+  width:78px;height:62px;border-radius:50%;
+  background:radial-gradient(circle,rgba(230,143,255,.26),transparent 68%);
+  color:var(--divine-gold);
+  font-size:2rem;
+}
+
+#app[data-divine-home] .soonLabel{
+  position:relative;z-index:1;
+  max-width:90%;
+  font-family:"Cormorant Garamond","Noto Serif Bengali",Georgia,serif;
+  font-size:1.1rem;color:#f1e7fa;
+}
+
+#app[data-divine-home] .soonBadge{display:none;}
+
+body:has(#app[data-divine-home]) .bottomDock{
+  left:22px;right:22px;
+  bottom:calc(12px + env(safe-area-inset-bottom));
+  width:auto;height:72px;
+  padding:7px 8px;
+  display:grid;grid-template-columns:repeat(5,1fr);gap:4px;
+  background:linear-gradient(180deg,rgba(42,13,83,.78),rgba(19,6,51,.90));
+  border:1px solid rgba(154,79,255,.40);
+  border-radius:38px;
+  box-shadow:0 15px 45px rgba(0,0,0,.48),inset 0 1px 0 rgba(255,255,255,.08),0 0 35px rgba(101,44,190,.14);
+  backdrop-filter:blur(22px);
+  -webkit-backdrop-filter:blur(22px);
+  z-index:100;
+}
+
+body:has(#app[data-divine-home]) .dockItem{
+  border:0;background:transparent;
+  color:#aa9abb;border-radius:28px;
+  font-family:"Cormorant Garamond","Noto Serif Bengali",Georgia,serif;
+  font-size:.78rem;min-width:0;
+}
+
+body:has(#app[data-divine-home]) .dockIcon{
+  display:block;font-size:1.22rem;margin-bottom:2px;
+}
+
+body:has(#app[data-divine-home]) .dockItem[data-dock-route="#/"]{
+  color:var(--divine-gold);
+}
+
+@media(max-width:520px){
+  #app[data-divine-home]{padding-left:14px;padding-right:14px;}
+  #app[data-divine-home] .hero{min-height:438px;}
+  #app[data-divine-home] .hero .padmaHero{width:290px;height:290px;right:-40px;top:108px;}
+  #app[data-divine-home] .hero::before{width:300px;height:300px;right:-70px;top:110px;}
+  #app[data-divine-home] .hero .sub{width:52%;top:245px;font-size:.93rem;}
+  #app[data-divine-home] .scriptureCard{height:128px;border-radius:16px;}
+  #app[data-divine-home] .scriptureCardMedia{height:70px;}
+  #app[data-divine-home] .scriptureCardTitle{font-size:.78rem;}
+  #app[data-divine-home] .soonGrid{gap:8px;}
+  #app[data-divine-home] .soonCard{min-height:145px;padding:12px;border-radius:16px;}
+  #app[data-divine-home] .soonLabel{font-size:.98rem;}
+  body:has(#app[data-divine-home]) .bottomDock{left:14px;right:14px;}
+}
+
+@media(max-width:380px){
+  #app[data-divine-home] .hero{min-height:410px;}
+  #app[data-divine-home] .hero .padmaHero{width:250px;height:250px;right:-35px;top:118px;}
+  #app[data-divine-home] .hero::after{font-size:2.85rem;top:88px;}
+  #app[data-divine-home] .hero .sub{top:214px;width:50%;font-size:.82rem;}
+  #app[data-divine-home] .scriptureCard{height:116px;}
+  #app[data-divine-home] .scriptureCardMedia{height:62px;}
+  #app[data-divine-home] .scriptureCardGlyph{font-size:1.55rem;}
+  #app[data-divine-home] .scriptureCardBody{padding:5px 6px 8px;}
+  #app[data-divine-home] .scriptureCardTitle{font-size:.70rem;}
+}
